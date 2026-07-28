@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, BarChart, Bar,
+  ResponsiveContainer, Legend, BarChart, Bar, Cell,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Search, Sparkles, X } from "lucide-react";
 
 type Country = { iso3: string; name: string; region: string | null };
 type Indicator = { id: string; name: string; category: string; unit: string | null };
@@ -42,6 +42,7 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [insight, setInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
 
   const countryMap = new Map(countries.map((c) => [c.iso3, c.name]));
   const allIndicators = Object.values(indicatorsByCategory).flat();
@@ -141,8 +142,25 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
         <CardContent className="p-5 space-y-4">
           <div>
             <label className="text-sm font-medium mb-2 block">Select countries</label>
-            <div className="flex flex-wrap gap-2">
-              {countries.slice(0, 30).map((c) => (
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search countries..."
+                value={countrySearch}
+                onChange={(e) => setCountrySearch(e.target.value)}
+                className="w-full rounded-lg border border-input bg-transparent pl-9 pr-8 py-2 text-sm"
+              />
+              {countrySearch && (
+                <button onClick={() => setCountrySearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+              {countries
+                .filter((c) => !countrySearch || c.name.toLowerCase().includes(countrySearch.toLowerCase()))
+                .map((c) => (
                 <button
                   key={c.iso3}
                   onClick={() => toggleCountry(c.iso3)}
@@ -156,6 +174,9 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                 </button>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              {selectedCountries.length} selected &middot; {countries.length} total
+            </p>
           </div>
           <div>
             <label className="text-sm font-medium mb-2 block">Select indicator</label>
@@ -238,9 +259,9 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                       contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
                     formatter={(v) => v != null && typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}
                     />
-                    <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]}>
-                      {barData.map((entry) => (
-                        <rect key={entry.iso3} fill={entry.iso3 === "IND" ? "#f59e0b" : "#3b82f6"} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {barData.map((entry, idx) => (
+                        <Cell key={entry.iso3} fill={entry.iso3 === "IND" ? "#f59e0b" : DEFAULT_COLORS[idx % DEFAULT_COLORS.length]} />
                       ))}
                     </Bar>
                   </BarChart>

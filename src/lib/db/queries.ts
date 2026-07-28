@@ -159,6 +159,24 @@ export function getIndicatorCoverage(): Array<{
   `);
 }
 
+/** Latest value per country for a given indicator (for maps). */
+export function getGlobalLatest(indicatorId: string): Array<{ iso3: string; value: number; year: number }> {
+  return query<{ iso3: string; value: number; year: number }>(
+    `SELECT dp.country_iso3 AS iso3, dp.value, dp.year
+     FROM data_points dp
+     INNER JOIN (
+       SELECT country_iso3, MAX(year) AS max_year
+       FROM data_points
+       WHERE indicator_id = ? AND value IS NOT NULL
+       GROUP BY country_iso3
+     ) latest
+       ON dp.country_iso3 = latest.country_iso3
+      AND dp.year = latest.max_year
+     WHERE dp.indicator_id = ? AND dp.value IS NOT NULL`,
+    [indicatorId, indicatorId],
+  );
+}
+
 /** Summary stats for the home page hero. */
 export function getDashboardStats(): {
   totalCountries: number;
