@@ -45,15 +45,15 @@ const TO_YEAR = 2022;       // most recent in the HDR 2023-24 release
  */
 const VARIABLE_MAP: Record<string, { id: string; category: string; source: string }> = {
   hdi:       { id: "hdi",                  category: "society",     source: "undp_hdr" },
-  le:        { id: "life_expectancy_undp", category: "healthcare",  source: "undp_hdr" },
+  le:        { id: "life_expectancy",      category: "healthcare",  source: "undp_hdr" },
   eys:       { id: "expected_yrs_school",  category: "education",   source: "undp_hdr" },
   mys:       { id: "mean_yrs_school",      category: "education",   source: "undp_hdr" },
   gnipc:     { id: "gni_per_capita",       category: "economy",     source: "undp_hdr" },
   ihdi:      { id: "ihdi",                 category: "equality",    source: "undp_hdr" },
-  gii:       { id: "gender_ineq_idx",      category: "equality",    source: "undp_hdr" },
+  gii:       { id: "gender_inequality",    category: "equality",    source: "undp_hdr" },
   gdi:       { id: "gender_dev_idx",       category: "equality",    source: "undp_hdr" },
-  mmr:       { id: "maternal_mortality_undp", category: "healthcare", source: "undp_hdr" },
-  co2_prod:  { id: "co2_per_capita_undp",  category: "environment", source: "undp_hdr" },
+  mmr:       { id: "maternal_mortality",   category: "healthcare",  source: "undp_hdr" },
+  co2_prod:  { id: "co2_per_capita",       category: "environment", source: "undp_hdr" },
   pop_total: { id: "population_total",     category: "society",     source: "undp_hdr" },
 };
 

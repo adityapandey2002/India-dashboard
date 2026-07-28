@@ -122,6 +122,43 @@ export function getAllCountries(): Array<{ iso3: string; name: string; region: s
   );
 }
 
+/** Coverage stats per indicator (data points, countries, year range). */
+export function getIndicatorCoverage(): Array<{
+  indicatorId: string;
+  indicatorName: string;
+  category: string;
+  source: string;
+  dataPoints: number;
+  countriesWithData: number;
+  firstYear: number | null;
+  lastYear: number | null;
+}> {
+  return query(`
+    SELECT
+      i.id AS indicatorId,
+      i.name AS indicatorName,
+      i.category,
+      i.source,
+      COALESCE(cov.dataPoints, 0) AS dataPoints,
+      COALESCE(cov.countriesWithData, 0) AS countriesWithData,
+      cov.firstYear,
+      cov.lastYear
+    FROM indicators i
+    LEFT JOIN (
+      SELECT
+        indicator_id,
+        COUNT(*) AS dataPoints,
+        COUNT(DISTINCT country_iso3) AS countriesWithData,
+        MIN(year) AS firstYear,
+        MAX(year) AS lastYear
+      FROM data_points
+      WHERE value IS NOT NULL
+      GROUP BY indicator_id
+    ) cov ON i.id = cov.indicator_id
+    ORDER BY i.category, i.name
+  `);
+}
+
 /** Summary stats for the home page hero. */
 export function getDashboardStats(): {
   totalCountries: number;

@@ -39,6 +39,12 @@ export const INDICATORS: IndicatorSeed[] = [
 
   // â”€â”€ ðŸ‘¥ Society â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   { id: "hdi",                  name: "Human Development Index",      category: "society",    source: "undp",       sourceId: "HDI",                   unit: "0â€“1",          description: "Composite of life expectancy, education, income", freq: "annual" },
+  { id: "expected_yrs_school",  name: "Expected years of schooling",  category: "education",  source: "undp",       sourceId: "EYS",                   unit: "years",        description: "Number of years of schooling expected",          freq: "annual" },
+  { id: "mean_yrs_school",      name: "Mean years of schooling",      category: "education",  source: "undp",       sourceId: "MYS",                   unit: "years",        description: "Average years of schooling for adults 25+",      freq: "annual" },
+  { id: "gni_per_capita",       name: "GNI per capita (PPP " + String.fromCharCode(36) + ")",        category: "economy",    source: "undp",       sourceId: "GNIPC",                 unit: "Intl " + String.fromCharCode(36),       description: "Gross national income per capita in PPP dollars", freq: "annual" },
+  { id: "ihdi",                 name: "Inequality-adjusted HDI",       category: "equality",   source: "undp",       sourceId: "IHDI",                  unit: "0–1",        description: "HDI discounted by inequality",                   freq: "annual" },
+  { id: "gender_dev_idx",       name: "Gender Development Index",      category: "equality",   source: "undp",       sourceId: "GDI",                   unit: "0–1",        description: "Ratio of female to male HDI values",            freq: "annual" },
+  { id: "population_total",     name: "Total population",              category: "society",    source: "undp",       sourceId: "POP",                   unit: "people",       description: "Total population",                              freq: "annual" },
   { id: "happiness_score",      name: "World Happiness Score",        category: "society",    source: "wef",        sourceId: "HAPPINESS",             unit: "0â€“10",         description: "Self-reported life evaluation (WHR)",            freq: "annual" },
   { id: "social_progress_idx",  name: "Social Progress Index",        category: "society",    source: "sspi",       sourceId: "SPI",                   unit: "0â€“100",        description: "Basic human needs + wellbeing of nations",       freq: "annual" },
   { id: "human_capital_idx",    name: "Human Capital Index",          category: "society",    source: "world_bank", sourceId: "HD.HCI.OVRL",            unit: "0â€“1",          description: "Knowledge + health + survival productivity",     freq: "annual" },
@@ -51,10 +57,10 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "democracy_idx",        name: "Democracy Index",              category: "governance", source: "ei",         sourceId: "DEMOCRACY",             unit: "0â€“10",         description: "Electoral process, pluralism, participation",    freq: "annual" },
   { id: "rule_of_law",          name: "Rule of Law Index",            category: "governance", source: "wjp",        sourceId: "ROL",                   unit: "0â€“1",          description: "WJP rule of law factor score",                   freq: "biennial" },
   { id: "press_freedom",        name: "Press Freedom Index",          category: "governance", source: "rsf",        sourceId: "PFI",                   unit: "rank",         description: "RSF press freedom ranking (lower=better)",       freq: "annual" },
-  { id: "gov_effectiveness",    name: "Government Effectiveness",     category: "governance", source: "world_bank", sourceId: "GE.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Quality of public services & policy",             freq: "annual" },
-  { id: "political_stability",  name: "Political Stability",          category: "governance", source: "world_bank", sourceId: "PV.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Likelihood of political instability",            freq: "annual" },
-  { id: "regulatory_quality",   name: "Regulatory Quality",           category: "governance", source: "world_bank", sourceId: "RQ.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Ability of government to formulate policy",      freq: "annual" },
-  { id: "voice_accountability", name: "Voice & Accountability",       category: "governance", source: "world_bank", sourceId: "VA.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Citizen participation in selecting govt",        freq: "annual" },
+  { id: "gov_effectiveness",    name: "Government Effectiveness",     category: "governance", source: "wgi", sourceId: "GE.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Quality of public services & policy",             freq: "annual" },
+  { id: "political_stability",  name: "Political Stability",          category: "governance", source: "wgi", sourceId: "PV.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Likelihood of political instability",            freq: "annual" },
+  { id: "regulatory_quality",   name: "Regulatory Quality",           category: "governance", source: "wgi", sourceId: "RQ.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Ability of government to formulate policy",      freq: "annual" },
+  { id: "voice_accountability", name: "Voice & Accountability",       category: "governance", source: "wgi", sourceId: "VA.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Citizen participation in selecting govt",        freq: "annual" },
   { id: "open_budget",          name: "Open Budget Index",            category: "governance", source: "ibp",        sourceId: "OBI",                   unit: "0â€“100",        description: "Transparency of the national budget",            freq: "biennial" },
 
   // â”€â”€ ðŸ’» Technology & Innovation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -91,7 +97,7 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "epi",                  name: "Environmental Performance Index", category: "environment", source: "yale",    sourceId: "EPI",                   unit: "0â€“100",        description: "Yale environmental health + ecosystem vitality", freq: "biennial" },
   { id: "ccpi",                 name: "Climate Change Performance Index", category: "environment", source: "germanwatch", sourceId: "CCPI",             unit: "0â€“100",        description: "Germanwatch climate protection ranking",         freq: "annual" },
   { id: "air_quality",          name: "Air quality (PM2.5 avg)",      category: "environment", source: "iqair",     sourceId: "PM25",                  unit: "Âµg/mÂ³",        description: "Average PM2.5 concentration",                    freq: "annual" },
-  { id: "co2_per_capita",       name: "COâ‚‚ emissions per capita",     category: "environment", source: "world_bank", sourceId: "EN.ATM.CO2E.PC",        unit: "tonnes",       description: "CO2 emissions per person",                       freq: "annual" },
+  { id: "co2_per_capita",       name: "COâ‚‚ emissions per capita",     category: "environment", source: "owid", sourceId: "co2_per_capita",           unit: "tonnes",       description: "CO2 emissions per person (OWID)",                freq: "annual" },
   { id: "renewable_share",      name: "Renewable energy share",       category: "environment", source: "world_bank", sourceId: "EG.FEC.RNEW.ZS",        unit: "%",            description: "Renewables as % of total energy use",            freq: "annual" },
   { id: "forest_cover",         name: "Forest area (% of land)",      category: "environment", source: "world_bank", sourceId: "AG.LND.FRST.ZS",        unit: "%",            description: "Share of land covered by forest",                freq: "annual" },
   { id: "water_stress",         name: "Water stress (freshwater withdrawal)", category: "environment", source: "world_bank", sourceId: "ER.H2O.FWST.ZS", unit: "%",            description: "Freshwater withdrawal as % of renewable resources", freq: "annual" },
@@ -114,7 +120,7 @@ export const INDICATORS: IndicatorSeed[] = [
   // â”€â”€ ðŸŒ Digital Government â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   { id: "egov_idx",             name: "E-Government Development Index", category: "digital_gov", source: "un",       sourceId: "EGDI",                  unit: "0â€“1",          description: "UN online services + telecom + human capital",   freq: "biennial" },
   { id: "eparticipation",       name: "E-Participation Index",        category: "digital_gov", source: "un",         sourceId: "EPI",                   unit: "0â€“1",          description: "UN citizen engagement in e-gov services",        freq: "biennial" },
-  { id: "govtech_maturity",     name: "GovTech Maturity Index",       category: "digital_gov", source: "world_bank", sourceId: "GTMI",                  unit: "0â€“1",          description: "WB govtech support + adoption score",            freq: "annual" },
+  { id: "govtech_maturity",     name: "GovTech Maturity Index",       category: "digital_gov", source: "wgi", sourceId: "GTMI",                  unit: "0â€“1",          description: "WB govtech support + adoption score",            freq: "annual" },
   { id: "open_data",            name: "Open Data Inventory",          category: "digital_gov", source: "od",         sourceId: "ODIN",                  unit: "0â€“100",        description: "Open Data Watch inventory score",                freq: "annual" },
   { id: "digital_competitiveness", name: "Digital Competitiveness Ranking", category: "digital_gov", source: "imd",   sourceId: "DCR",                   unit: "rank",         description: "IMD digital business + knowledge + tech readiness", freq: "annual" },
 ];
@@ -134,7 +140,7 @@ export function getAvailableIndicators(): Indicator[] {
     }));
 }
 
-const READY_SOURCES = new Set(["world_bank", "undp", "who", "itu", "wipo"]);
+const READY_SOURCES = new Set(["world_bank", "undp", "who", "itu", "wipo", "owid"]);
 
 function isSourceReady(source: string): boolean {
   return READY_SOURCES.has(source);

@@ -24,6 +24,7 @@ import { downloadUndpCsvAsync, parseUndpCsv, getUndpVariableMap } from "../src/l
 import { fetchWhoIndicatorData } from "../src/lib/data/sources/who";
 import { fetchItuData } from "../src/lib/data/sources/itu";
 import { fetchWipoData } from "../src/lib/data/sources/wipo";
+import { fetchOwidCo2Data } from "../src/lib/data/sources/owid";
 
 const FOCUS_COUNTRIES = [
   "IND", "USA", "CHN", "JPN", "DEU", "GBR", "FRA", "BRA", "RUS", "CAN",
@@ -147,6 +148,9 @@ async function main() {
   getDb(); // run migrations
   await seedStatic();
 
+  const knownRows = query<{ iso3: string }>(`SELECT iso3 FROM countries`);
+  const knownCountries = new Set(knownRows.map((r) => r.iso3));
+
   const wbIndicators = INDICATORS.filter((i) => i.source === "world_bank");
   console.log(`\n📥 Fetching ${wbIndicators.length} World Bank indicators for ${FOCUS_COUNTRIES.length} countries (${CONCURRENCY} parallel)...\n`);
 
@@ -213,7 +217,7 @@ async function main() {
         console.log(`  ⏭  ${ind.id.padEnd(22)} (fresh, skipped)`);
         continue;
       }
-      const pts = await fetchWhoIndicatorData(ind.id);
+      const pts = (await fetchWhoIndicatorData(ind.id)).filter((p) => knownCountries.has(p.iso3));
       const now = new Date().toISOString();
       for (const p of pts) {
         execute(
@@ -244,6 +248,36 @@ async function main() {
         continue;
       }
       const pts = await fetchItuData(ind.id);
+      const now = new Date().toISOString();
+      for (const p of pts) {
+        execute(
+          `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
+             value=excluded.value, fetched_at=excluded.fetched_at`,
+          [p.iso3, ind.id, p.year, p.value, now],
+        );
+      }
+      totalPoints += pts.length;
+      successes++;
+      console.log(`  ✓ ${ind.id.padEnd(22)} ${String(pts.length).padStart(4)} pts`);
+    } catch (err) {
+      failures++;
+      console.log(`  ✗ ${ind.id.padEnd(22)} FAILED: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // ── OWID CO2 ─────────────────────────────────────────────────
+  console.log(`\n📥 Ingesting OWID CO2 data...`);
+  const owidIndicators = INDICATORS.filter((i) => i.source === "owid");
+  for (const ind of owidIndicators) {
+    try {
+      if (isFresh(ind.id)) {
+        skipped++;
+        console.log(`  ⏭  ${ind.id.padEnd(22)} (fresh, skipped)`);
+        continue;
+      }
+      const pts = (await fetchOwidCo2Data(ind.id)).filter((p) => knownCountries.has(p.iso3));
       const now = new Date().toISOString();
       for (const p of pts) {
         execute(
