@@ -1,6 +1,7 @@
 import { Globe2, TrendingUp, Database, Calendar, BookOpen, Heart, BarChart3, Leaf } from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { TrendChart } from "@/components/dashboard/trend-chart";
+import { WorldMapCard } from "@/components/dashboard/world-map-card";
 import { Leaderboard, type LeaderRow } from "@/components/dashboard/leaderboard";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,6 +11,7 @@ import {
   getRankInYear,
   getAllCountries,
   getDashboardStats,
+  getAllIndicators,
 } from "@/lib/db/queries";
 import { query } from "@/lib/db/client";
 
@@ -148,6 +150,11 @@ export default async function HomePage() {
           {kpiCards.map((kpi) => (
             <StatCard key={kpi.label} label={kpi.label} value={kpi.value} hint={kpi.hint} icon={<kpi.icon className="h-4 w-4 text-muted-foreground" />} />
           ))}
+        </section>
+
+        {/* World map */}
+        <section>
+          <WorldMapCard indicators={getAllIndicators()} />
         </section>
 
         {/* GDP trend */}

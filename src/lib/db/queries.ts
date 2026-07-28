@@ -159,6 +159,15 @@ export function getIndicatorCoverage(): Array<{
   `);
 }
 
+/** Latest year with data for a given indicator. */
+export function getLatestYear(indicatorId: string): number | null {
+  const rows = query<{ yr: number }>(
+    `SELECT MAX(year) AS yr FROM data_points WHERE indicator_id = ? AND value IS NOT NULL`,
+    [indicatorId],
+  );
+  return rows[0]?.yr ?? null;
+}
+
 /** Latest value per country for a given indicator (for maps). */
 export function getGlobalLatest(indicatorId: string): Array<{ iso3: string; value: number; year: number }> {
   return query<{ iso3: string; value: number; year: number }>(
