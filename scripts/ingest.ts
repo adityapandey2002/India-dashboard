@@ -25,6 +25,7 @@ import { fetchWhoIndicatorData } from "../src/lib/data/sources/who";
 import { fetchItuData } from "../src/lib/data/sources/itu";
 import { fetchWipoData } from "../src/lib/data/sources/wipo";
 import { fetchOwidCo2Data } from "../src/lib/data/sources/owid";
+import { fetchWgiData } from "../src/lib/data/sources/wgi";
 
 const FOCUS_COUNTRIES = [
   "IND", "USA", "CHN", "JPN", "DEU", "GBR", "FRA", "BRA", "RUS", "CAN",
@@ -295,6 +296,40 @@ async function main() {
       failures++;
       console.log(`  ✗ ${ind.id.padEnd(22)} FAILED: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  // ── WGI ─────────────────────────────────────────────────────
+  console.log(`\n📥 Ingesting WGI governance data...`);
+  try {
+    const wgiIndIds = INDICATORS.filter((i) => i.source === "wgi").map((i) => i.id);
+    if (wgiIndIds.length > 0) {
+      const allFresh = wgiIndIds.every((id) => isFresh(id));
+      if (!allFresh) {
+        const wgiPts = (await fetchWgiData()).filter((p) => knownCountries.has(p.iso3));
+        const now = new Date().toISOString();
+        let inserted = 0;
+        for (const p of wgiPts) {
+          if (!wgiIndIds.includes(p.indicatorId)) continue;
+          execute(
+            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
+               value=excluded.value, fetched_at=excluded.fetched_at`,
+            [p.iso3, p.indicatorId, p.year, p.value, now],
+          );
+          inserted++;
+        }
+        totalPoints += inserted;
+        successes++;
+        console.log(`  ✓ WGI governance ${String(inserted).padStart(4)} pts`);
+      } else {
+        skipped++;
+        console.log(`  ⏭  WGI governance (fresh, skipped)`);
+      }
+    }
+  } catch (err) {
+    failures++;
+    console.log(`  ✗ WGI FAILED: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   // ── WIPO ─────────────────────────────────────────────────────

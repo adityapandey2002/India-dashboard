@@ -61,6 +61,7 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "political_stability",  name: "Political Stability",          category: "governance", source: "wgi", sourceId: "PV.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Likelihood of political instability",            freq: "annual" },
   { id: "regulatory_quality",   name: "Regulatory Quality",           category: "governance", source: "wgi", sourceId: "RQ.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Ability of government to formulate policy",      freq: "annual" },
   { id: "voice_accountability", name: "Voice & Accountability",       category: "governance", source: "wgi", sourceId: "VA.EST",                 unit: "âˆ’2.5â€“2.5",     description: "Citizen participation in selecting govt",        freq: "annual" },
+  { id: "control_corruption",   name: "Control of Corruption",       category: "governance", source: "wgi", sourceId: "CC.EST",                 unit: "\u22122.5\u20132.5",     description: "WGI control of corruption estimate",              freq: "annual" },
   { id: "open_budget",          name: "Open Budget Index",            category: "governance", source: "ibp",        sourceId: "OBI",                   unit: "0â€“100",        description: "Transparency of the national budget",            freq: "biennial" },
 
   // â”€â”€ ðŸ’» Technology & Innovation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -73,6 +74,8 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "broadband_speed",      name: "Broadband speed (median)",     category: "technology", source: "ookla",      sourceId: "MEDIAN_MBPS",           unit: "Mbps",         description: "Median download speed (Ookla)",                  freq: "annual" },
   { id: "rd_expenditure",       name: "R&D expenditure (% GDP)",      category: "technology", source: "world_bank", sourceId: "GB.XPD.RSDV.GD.ZS",     unit: "%",            description: "Research & development spending as % of GDP",    freq: "annual" },
   { id: "patents_per_million",  name: "Patents per million people",   category: "technology", source: "wipo",       sourceId: "PATENTS_PM",            unit: "per million",  description: "Patent applications filed per million people",   freq: "annual" },
+  { id: "patent_applications",  name: "Patent applications (residents)", category: "technology", source: "world_bank", sourceId: "IP.PAT.RESD",         unit: "count",        description: "Patent applications filed by residents at national patent office", freq: "annual" },
+  { id: "mobile_subs",          name: "Mobile cellular subscriptions", category: "technology", source: "world_bank", sourceId: "IT.CEL.SETS.P2",       unit: "per 100",      description: "Mobile cellular subscriptions per 100 people",    freq: "annual" },
 
   // â”€â”€ ðŸŽ“ Education â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   { id: "education_idx",        name: "Education Index",              category: "education",  source: "undp",       sourceId: "EDUCATION_IDX",         unit: "0â€“1",          description: "Mean years of schooling + expected years",        freq: "annual" },
@@ -101,6 +104,7 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "renewable_share",      name: "Renewable energy share",       category: "environment", source: "world_bank", sourceId: "EG.FEC.RNEW.ZS",        unit: "%",            description: "Renewables as % of total energy use",            freq: "annual" },
   { id: "forest_cover",         name: "Forest area (% of land)",      category: "environment", source: "world_bank", sourceId: "AG.LND.FRST.ZS",        unit: "%",            description: "Share of land covered by forest",                freq: "annual" },
   { id: "water_stress",         name: "Water stress (freshwater withdrawal)", category: "environment", source: "world_bank", sourceId: "ER.H2O.FWST.ZS", unit: "%",            description: "Freshwater withdrawal as % of renewable resources", freq: "annual" },
+  { id: "electricity_access",   name: "Access to electricity",        category: "environment", source: "world_bank", sourceId: "EG.ELC.ACCS.ZS",       unit: "%",            description: "Share of population with access to electricity",  freq: "annual" },
   { id: "sdg_score",            name: "SDG Score (overall)",          category: "environment", source: "sdg",        sourceId: "SDG_SCORE",             unit: "0â€“100",        description: "SDG transformation score",                       freq: "annual" },
 
   // â”€â”€ ðŸ›¡ Safety â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -140,7 +144,7 @@ export function getAvailableIndicators(): Indicator[] {
     }));
 }
 
-const READY_SOURCES = new Set(["world_bank", "undp", "who", "itu", "wipo", "owid"]);
+const READY_SOURCES = new Set(["world_bank", "undp", "who", "itu", "wipo", "owid", "wgi"]);
 
 function isSourceReady(source: string): boolean {
   return READY_SOURCES.has(source);
