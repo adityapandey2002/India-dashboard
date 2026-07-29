@@ -22,8 +22,6 @@ import { INDICATORS } from "../src/lib/data/indicators";
 import { fetchAllCountries, fetchIndicator } from "../src/lib/data/sources/world-bank";
 import { downloadUndpCsvAsync, parseUndpCsv, getUndpVariableMap } from "../src/lib/data/sources/undp";
 import { fetchWhoIndicatorData } from "../src/lib/data/sources/who";
-import { fetchItuData } from "../src/lib/data/sources/itu";
-import { fetchWipoData } from "../src/lib/data/sources/wipo";
 import { fetchOwidCo2Data } from "../src/lib/data/sources/owid";
 import { fetchWgiData } from "../src/lib/data/sources/wgi";
 
@@ -40,8 +38,6 @@ const SOURCES = [
   { id: "wef",        name: "World Economic Forum", url: "https://www.weforum.org/", type: "pdf" },
   { id: "ti",         name: "Transparency International CPI", url: "https://www.transparency.org/", type: "pdf" },
   { id: "wjp",        name: "World Justice Project", url: "https://worldjusticeproject.org/", type: "pdf" },
-  { id: "itu",        name: "ITU Data", url: "https://www.itu.int/en/ITU-D/Statistics/", type: "api" },
-  { id: "wipo",       name: "WIPO IP Statistics", url: "https://www.wipo.int/ipstats/", type: "api" },
   { id: "yale",       name: "Yale Environmental Performance Index", url: "https://epi.yale.edu/", type: "pdf" },
   { id: "germanwatch",name: "Germanwatch CCPI", url: "https://www.germanwatch.org/", type: "pdf" },
   { id: "imd",        name: "IMD World Competitiveness", url: "https://www.imd.org/", type: "pdf" },
@@ -238,36 +234,6 @@ async function main() {
     }
   }
 
-  // ── ITU ──────────────────────────────────────────────────────
-  console.log(`\n📥 Ingesting ITU data...`);
-  const ituIndicators = INDICATORS.filter((i) => i.source === "itu");
-  for (const ind of ituIndicators) {
-    try {
-      if (isFresh(ind.id)) {
-        skipped++;
-        console.log(`  ⏭  ${ind.id.padEnd(22)} (fresh, skipped)`);
-        continue;
-      }
-      const pts = await fetchItuData(ind.id);
-      const now = new Date().toISOString();
-      for (const p of pts) {
-        execute(
-          `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-           VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-             value=excluded.value, fetched_at=excluded.fetched_at`,
-          [p.iso3, ind.id, p.year, p.value, now],
-        );
-      }
-      totalPoints += pts.length;
-      successes++;
-      console.log(`  ✓ ${ind.id.padEnd(22)} ${String(pts.length).padStart(4)} pts`);
-    } catch (err) {
-      failures++;
-      console.log(`  ✗ ${ind.id.padEnd(22)} FAILED: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
   // ── OWID CO2 ─────────────────────────────────────────────────
   console.log(`\n📥 Ingesting OWID CO2 data...`);
   const owidIndicators = INDICATORS.filter((i) => i.source === "owid");
@@ -330,36 +296,6 @@ async function main() {
   } catch (err) {
     failures++;
     console.log(`  ✗ WGI FAILED: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  // ── WIPO ─────────────────────────────────────────────────────
-  console.log(`\n📥 Ingesting WIPO data...`);
-  const wipoIndicators = INDICATORS.filter((i) => i.source === "wipo");
-  for (const ind of wipoIndicators) {
-    try {
-      if (isFresh(ind.id)) {
-        skipped++;
-        console.log(`  ⏭  ${ind.id.padEnd(22)} (fresh, skipped)`);
-        continue;
-      }
-      const pts = await fetchWipoData(ind.id);
-      const now = new Date().toISOString();
-      for (const p of pts) {
-        execute(
-          `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-           VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-             value=excluded.value, fetched_at=excluded.fetched_at`,
-          [p.iso3, ind.id, p.year, p.value, now],
-        );
-      }
-      totalPoints += pts.length;
-      successes++;
-      console.log(`  ✓ ${ind.id.padEnd(22)} ${String(pts.length).padStart(4)} pts`);
-    } catch (err) {
-      failures++;
-      console.log(`  ✗ ${ind.id.padEnd(22)} FAILED: ${err instanceof Error ? err.message : String(err)}`);
-    }
   }
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);

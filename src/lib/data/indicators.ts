@@ -35,7 +35,8 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "logistics_perf_idx",   name: "Logistics Performance Index",  category: "economy",    source: "world_bank", sourceId: "LP.LPI.OVRL.XQ",        unit: "1â€“5",          description: "Quality of trade logistics (1=low, 5=high)",     freq: "biennial" },
   { id: "economic_freedom",     name: "Economic Freedom Index",       category: "economy",    source: "heritage",   sourceId: "ECONOMIC_FREEDOM",      unit: "0â€“100",        description: "Heritage Foundation index of economic freedom",  freq: "annual" },
   { id: "global_competitiveness", name: "Global Competitiveness Index", category: "economy",  source: "wef",        sourceId: "GCI",                    unit: "0â€“100",        description: "WEF measure of productivity & competitiveness", freq: "annual" },
-  { id: "innovation_idx",       name: "Global Innovation Index",      category: "economy",    source: "wipo",       sourceId: "GII",                   unit: "0â€“100",        description: "WIPO innovation output + input score",          freq: "annual" },
+  { id: "trade_pct_gdp",        name: "Trade (% of GDP)",             category: "economy",    source: "world_bank", sourceId: "TG.VAL.TOTL.GD.ZS",     unit: "%",            description: "Total trade (exports + imports) as share of GDP", freq: "annual" },
+  { id: "self_employed",        name: "Self-employed (% of employment)", category: "economy", source: "world_bank", sourceId: "SL.EMP.SELF.ZS",       unit: "%",            description: "Own-account workers and employers",              freq: "annual" },
 
   // â”€â”€ ðŸ‘¥ Society â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   { id: "hdi",                  name: "Human Development Index",      category: "society",    source: "undp",       sourceId: "HDI",                   unit: "0â€“1",          description: "Composite of life expectancy, education, income", freq: "annual" },
@@ -51,6 +52,7 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "multidim_poverty",     name: "Multidimensional Poverty",     category: "society",    source: "undp",       sourceId: "MPI",                   unit: "0â€“1",          description: "Share deprived in 1/3 of 10 indicators",         freq: "annual" },
   { id: "population_growth",    name: "Population growth (annual %)", category: "society",    source: "world_bank", sourceId: "SP.POP.GROW",            unit: "%",            description: "Year-over-year population change",               freq: "annual" },
   { id: "urbanization_pct",     name: "Urban population (%)",         category: "society",    source: "world_bank", sourceId: "SP.URB.TOTL.IN.ZS",     unit: "%",            description: "Share of population living in urban areas",      freq: "annual" },
+  { id: "age_dependency",       name: "Age dependency ratio",         category: "society",    source: "world_bank", sourceId: "SP.POP.DPND",            unit: "%",            description: "Dependents as % of working-age population",     freq: "annual" },
 
   // â”€â”€ ðŸ› Governance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   { id: "corruption_idx",       name: "Corruption Perceptions Index", category: "governance", source: "ti",         sourceId: "CPI",                   unit: "0â€“100",        description: "Perceived public-sector corruption (0=clean)",   freq: "annual" },
@@ -67,15 +69,15 @@ export const INDICATORS: IndicatorSeed[] = [
   // â”€â”€ ðŸ’» Technology & Innovation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   { id: "ai_readiness",         name: "AI Readiness Index",           category: "technology", source: "oxford",     sourceId: "AIRI",                  unit: "0â€“100",        description: "Oxford Insights govt AI readiness",              freq: "annual" },
   { id: "network_readiness",    name: "Network Readiness Index",      category: "technology", source: "turtle",     sourceId: "NRI",                   unit: "0â€“100",        description: "Portulans Institute technology readiness",        freq: "annual" },
-  { id: "cyber_security",       name: "Global Cybersecurity Index",   category: "technology", source: "itu",        sourceId: "GCI",                   unit: "0â€“100",        description: "ITU cyber security commitment score",            freq: "annual" },
+  { id: "cyber_security",       name: "Secure Internet servers",      category: "technology", source: "world_bank", sourceId: "IT.NET.SECR.P6",        unit: "per 1M",       description: "Secure Internet servers per 1 million people",   freq: "annual" },
   { id: "startup_ecosystem",    name: "Startup Ecosystem Ranking",    category: "technology", source: "startupblink", sourceId: "RANK",                unit: "rank",         description: "StartupBlink global ecosystem rank",             freq: "annual" },
-  { id: "ict_development",      name: "ICT Development Index",        category: "technology", source: "itu",        sourceId: "IDI",                   unit: "0â€“10",         description: "ITU ICT access, use, skills level",               freq: "annual" },
+
   { id: "internet_penetration", name: "Internet users (% of pop)",    category: "technology", source: "world_bank", sourceId: "IT.NET.USER.ZS",        unit: "%",            description: "Share of population using the internet",         freq: "annual" },
   { id: "broadband_speed",      name: "Broadband speed (median)",     category: "technology", source: "ookla",      sourceId: "MEDIAN_MBPS",           unit: "Mbps",         description: "Median download speed (Ookla)",                  freq: "annual" },
   { id: "rd_expenditure",       name: "R&D expenditure (% GDP)",      category: "technology", source: "world_bank", sourceId: "GB.XPD.RSDV.GD.ZS",     unit: "%",            description: "Research & development spending as % of GDP",    freq: "annual" },
-  { id: "patents_per_million",  name: "Patents per million people",   category: "technology", source: "wipo",       sourceId: "PATENTS_PM",            unit: "per million",  description: "Patent applications filed per million people",   freq: "annual" },
   { id: "patent_applications",  name: "Patent applications (residents)", category: "technology", source: "world_bank", sourceId: "IP.PAT.RESD",         unit: "count",        description: "Patent applications filed by residents at national patent office", freq: "annual" },
   { id: "mobile_subs",          name: "Mobile cellular subscriptions", category: "technology", source: "world_bank", sourceId: "IT.CEL.SETS.P2",       unit: "per 100",      description: "Mobile cellular subscriptions per 100 people",    freq: "annual" },
+  { id: "high_tech_exports",    name: "High-tech exports (% mfg)",    category: "technology", source: "world_bank", sourceId: "TX.VAL.TECH.MF.ZS",     unit: "%",            description: "High-tech products as % of manufactured exports", freq: "annual" },
 
   // â”€â”€ ðŸŽ“ Education â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   { id: "education_idx",        name: "Education Index",              category: "education",  source: "undp",       sourceId: "EDUCATION_IDX",         unit: "0â€“1",          description: "Mean years of schooling + expected years",        freq: "annual" },
@@ -105,6 +107,7 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "forest_cover",         name: "Forest area (% of land)",      category: "environment", source: "world_bank", sourceId: "AG.LND.FRST.ZS",        unit: "%",            description: "Share of land covered by forest",                freq: "annual" },
   { id: "water_stress",         name: "Water stress (freshwater withdrawal)", category: "environment", source: "world_bank", sourceId: "ER.H2O.FWST.ZS", unit: "%",            description: "Freshwater withdrawal as % of renewable resources", freq: "annual" },
   { id: "electricity_access",   name: "Access to electricity",        category: "environment", source: "world_bank", sourceId: "EG.ELC.ACCS.ZS",       unit: "%",            description: "Share of population with access to electricity",  freq: "annual" },
+
   { id: "sdg_score",            name: "SDG Score (overall)",          category: "environment", source: "sdg",        sourceId: "SDG_SCORE",             unit: "0â€“100",        description: "SDG transformation score",                       freq: "annual" },
 
   // â”€â”€ ðŸ›¡ Safety â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -144,7 +147,7 @@ export function getAvailableIndicators(): Indicator[] {
     }));
 }
 
-const READY_SOURCES = new Set(["world_bank", "undp", "who", "itu", "wipo", "owid", "wgi"]);
+const READY_SOURCES = new Set(["world_bank", "undp", "who", "owid", "wgi"]);
 
 function isSourceReady(source: string): boolean {
   return READY_SOURCES.has(source);
