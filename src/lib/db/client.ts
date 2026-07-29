@@ -114,5 +114,18 @@ function runMigrations(db: DatabaseSync): void {
       url       TEXT,
       type      TEXT                       -- "api", "csv", "pdf", "scrape"
     );
+
+    -- Vector embeddings for RAG chatbot semantic search.
+    -- Each row stores a text chunk + its 384-dim embedding (Float32 BLOB).
+    CREATE TABLE IF NOT EXISTS embeddings (
+      id            TEXT PRIMARY KEY,      -- "vec_<indicator>_<country>_<year>"
+      chunk_text    TEXT NOT NULL,
+      source        TEXT NOT NULL,         -- citation identifier
+      indicator_id  TEXT,
+      country_iso3  TEXT,
+      year          INTEGER,
+      embedding     TEXT                  -- JSON-encoded TF-IDF vector
+    );
+    CREATE INDEX IF NOT EXISTS idx_embeddings_indicator ON embeddings (indicator_id);
   `);
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, BarChart, Bar, Cell,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -112,22 +113,34 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
         .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
     : [];
 
+  // Radar chart data: normalize values to 0-100 scale for comparison
+  const radarCountries = selectedCountries.filter((iso3) => seriesData[iso3]?.some((p) => p.year === latestYear));
+  const radarData = radarCountries.map((iso3) => {
+    const val = seriesData[iso3]?.find((p) => p.year === latestYear)?.value ?? 0;
+    return { name: countryMap.get(iso3) ?? iso3, [iso3]: val };
+  });
+  // Add an aggregate "max" row for radar scaling
+  const maxVal = Math.max(...radarData.map((r) => Object.values(r)[1] as number));
+  const minVal = Math.min(...radarData.map((r) => Object.values(r)[1] as number));
+  const radarDataWithScale = radarData.map((r) => {
+    const raw = Object.values(r)[1] as number;
+    return { name: r.name, [Object.keys(r)[1]]: maxVal > minVal ? ((raw - minVal) / (maxVal - minVal)) * 100 : 50 };
+  });
+
   const loadInsight = async () => {
     if (!currentIndicator) return;
     setInsightLoading(true);
     setInsight(null);
     try {
-      const res = await fetch("/api/ai/insights", {
+      const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          country: "IND",
-          indicator: selectedIndicator,
           question: `How does India compare to ${selectedCountries.filter((c) => c !== "IND").map((c) => countryMap.get(c)).join(", ")} on ${currentIndicator.name}? What are the key takeaways?`,
         }),
       });
       const json = await res.json();
-      setInsight(json.insight ?? json.note ?? "AI insight unavailable. Set GROQ_API_KEY.");
+      setInsight(json.answer ?? json.error ?? "AI insight unavailable. Set GROQ_API_KEY.");
     } catch {
       setInsight("Failed to load AI insight.");
     } finally {
@@ -267,6 +280,80 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                   </BarChart>
                 </ResponsiveContainer>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Radar Chart + Delta Highlights */}
+      {!loading && !error && chartData.length > 0 && barData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Radar comparison & deltas</span>
+              {currentIndicator?.unit && (
+                <Badge variant="secondary" className="text-xs">{currentIndicator.unit}</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <ResponsiveContainer width="100%" height={320}>
+                <RadarChart cx="50%" cy="50%" innerRadius={40} outerRadius={120} data={radarData}>
+                  <PolarGrid gridType="polygon" stroke="hsl(var(--muted))" />
+                  <PolarAngleAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <PolarRadiusAxis angle={30} tick={{ fontSize: 10 }} domain={[0, "dataMax + 10"]} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v) => v != null && typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  {radarCountries.map((iso3, i) => (
+                    <Radar
+                      key={iso3}
+                      name={countryMap.get(iso3) ?? iso3}
+                      dataKey={iso3}
+                      stroke={DEFAULT_COLORS[i % DEFAULT_COLORS.length]}
+                      fill={DEFAULT_COLORS[i % DEFAULT_COLORS.length]}
+                      fillOpacity={0.15}
+                      strokeWidth={iso3 === "IND" ? 2 : 1.5}
+                    />
+                  ))}
+                </RadarChart>
+              </ResponsiveContainer>
+
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm">Delta vs India (latest year: {latestYear})</h4>
+                {barData.length > 1 && (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {barData
+                      .filter((d) => d.iso3 !== "IND")
+                      .map((d) => {
+                        const dVal = d.value ?? 0;
+                        const indiaVal = barData.find((b) => b.iso3 === "IND")?.value ?? 0;
+                        const diff = dVal - indiaVal;
+                        const pct = indiaVal !== 0 ? ((diff / indiaVal) * 100).toFixed(1) : "∞";
+                        const isBetter = diff > 0;
+                        return (
+                          <div key={d.iso3} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${d.iso3 === "IND" ? "bg-amber-500" : DEFAULT_COLORS[barData.indexOf(d) % DEFAULT_COLORS.length]}`} />
+                              <span className="font-medium text-sm">{d.name}</span>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-mono text-sm">
+                                {isBetter ? "+" : ""}{diff.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              </div>
+                              <div className={`text-xs font-mono ${isBetter ? "text-green-600" : "text-red-600"}`}>
+                                ({pct}% vs India)
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

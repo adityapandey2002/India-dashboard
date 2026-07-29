@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import * as d3 from "d3-geo";
 import { feature } from "topojson-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,8 +50,18 @@ const GEO_ID_MAP: Record<string, string> = {
   MAC: "MAC", TWN: "TWN", PSE: "PSE",
 };
 
+const HISTORICAL_EVENTS = [
+  { year: 2020, label: "COVID-19", description: "Global pandemic caused economic contraction, supply chain disruption, and accelerated digital adoption worldwide." },
+  { year: 2016, label: "Demonetization", description: "India withdrew ₹500/₹1000 notes (86% of cash), causing short-term GDP dip and accelerated digital payments." },
+  { year: 2014, label: "PM Modi elected", description: "Policy shift toward Make in India, GST (2017), IBC (2016), infrastructure push." },
+  { year: 2008, label: "Global Financial Crisis", description: "World trade collapsed; India relatively resilient due to domestic demand and limited financial exposure." },
+  { year: 2004, label: "Tsunami", description: "Indian Ocean tsunami impacted coastal economies; massive reconstruction spending followed." },
+  { year: 1991, label: "Economic Liberalization", description: "India ended License Raj, opened to FDI, devalued rupee — foundation of modern growth trajectory." },
+];
+
 export function WorldMapCard({ indicators }: Props) {
   const [selectedIndicator, setSelectedIndicator] = useState("gdp_current_usd");
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [data, setData] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(false);
   const [paths, setPaths] = useState<{ id: string; name: string; path: string }[]>([]);
@@ -59,6 +69,7 @@ export function WorldMapCard({ indicators }: Props) {
   const geoLoaded = useRef(false);
 
   const currIndicator = indicators.find((i) => i.id === selectedIndicator);
+  const currentEvent = selectedYear ? HISTORICAL_EVENTS.find((e) => e.year === selectedYear) : null;
 
   useEffect(() => {
     if (geoLoaded.current) return;
@@ -89,7 +100,8 @@ export function WorldMapCard({ indicators }: Props) {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/indicators/leaderboard?indicator=${selectedIndicator}&limit=250`);
+        const yearParam = selectedYear ? `&year=${selectedYear}` : "";
+        const res = await fetch(`/api/indicators/leaderboard?indicator=${selectedIndicator}&limit=250${yearParam}`);
         if (!res.ok) return;
         const json = await res.json();
         if (!cancelled && json.leaderboard) {
@@ -103,7 +115,7 @@ export function WorldMapCard({ indicators }: Props) {
     };
     load();
     return () => { cancelled = true; };
-  }, [selectedIndicator]);
+  }, [selectedIndicator, selectedYear]);
 
   const vals = [...data.values()].filter((v) => v != null && !isNaN(v));
   const vMin = vals.length > 0 ? Math.min(...vals) : 0;
@@ -120,20 +132,38 @@ export function WorldMapCard({ indicators }: Props) {
     return `rgb(${r}, ${g}, ${b})`;
   };
 
+  const yearsWithData = useMemo(() => {
+    // This would ideally come from an API call to get available years
+    // For now, we'll show a range
+    return Array.from({ length: 15 }, (_, i) => 2024 - i);
+  }, []);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+        <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <span>World map</span>
-          <select
-            value={selectedIndicator}
-            onChange={(e) => setSelectedIndicator(e.target.value)}
-            className="text-sm font-normal rounded-lg border border-input bg-transparent px-2 py-1 max-w-[240px]"
-          >
-            {indicators.map((ind) => (
-              <option key={ind.id} value={ind.id}>{ind.name}</option>
-            ))}
-          </select>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={selectedIndicator}
+              onChange={(e) => { setSelectedIndicator(e.target.value); setSelectedYear(null); }}
+              className="text-sm font-normal rounded-lg border border-input bg-transparent px-2 py-1 max-w-[240px]"
+            >
+              {indicators.map((ind) => (
+                <option key={ind.id} value={ind.id}>{ind.name}</option>
+              ))}
+            </select>
+            <select
+              value={selectedYear ?? ""}
+              onChange={(e) => setSelectedYear(e.target.value ? parseInt(e.target.value) : null)}
+              className="text-sm font-normal rounded-lg border border-input bg-transparent px-2 py-1 w-[120px]"
+            >
+              <option value="">Latest</option>
+              {yearsWithData.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -177,9 +207,34 @@ export function WorldMapCard({ indicators }: Props) {
               }} />
               <span className="tabular-nums">{vMax.toFixed(1)}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{currIndicator?.name ?? selectedIndicator} · {data.size} countries</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {currIndicator?.name ?? selectedIndicator} · {selectedYear ? `${selectedYear}` : "latest"} · {data.size} countries
+            </p>
           </div>
         )}
+        {currentEvent && (
+          <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 p-3 text-sm mt-3">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-amber-700">{currentEvent.label} ({currentEvent.year})</span>
+            </div>
+            <p className="text-amber-600 mt-1">{currentEvent.description}</p>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1 mt-3 text-xs text-muted-foreground">
+          {HISTORICAL_EVENTS.map((e) => (
+            <button
+              key={e.year}
+              onClick={() => setSelectedYear(selectedYear === e.year ? null : e.year)}
+              className={`px-2 py-0.5 rounded border transition-colors ${
+                selectedYear === e.year
+                  ? "bg-amber-100 border-amber-300 text-amber-800"
+                  : "border-border hover:border-amber-300 hover:bg-amber-50"
+              }`}
+            >
+              {e.year} {e.label}
+            </button>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

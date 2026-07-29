@@ -39,6 +39,7 @@ export default function RootLayout({
               <Link href="/" className="hover:text-foreground">Home</Link>
               <Link href="/explore" className="hover:text-foreground">Explore</Link>
               <Link href="/compare" className="hover:text-foreground">Compare</Link>
+              <Link href="/report-card" className="hover:text-foreground">Report Card</Link>
             </div>
           </div>
         </nav>
