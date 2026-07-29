@@ -1,13 +1,5 @@
-/**
- * Reusable database queries for the dashboard.
- * These are the only place the rest of the app should talk to the DB.
- * If we move to Postgres later, we rewrite this file — nothing else changes.
- */
-
 import { query } from "./client";
 import { rowToDataPoint, rowToIndicator, type DataPoint, type Indicator } from "./types";
-
-// ── Indicators ────────────────────────────────────────────────────
 
 export function getAllIndicators(): Indicator[] {
   const rows = query<Record<string, unknown>>(`SELECT * FROM indicators ORDER BY category, name`);
@@ -28,14 +20,11 @@ export function getIndicator(id: string): Indicator | null {
   return rows[0] ? rowToIndicator(rows[0]) : null;
 }
 
-// ── Data points ───────────────────────────────────────────────────
-
-/** All data points for a single country. Used by the country overview. */
 export function getCountryHistory(iso3: string, fromYear?: number, toYear?: number): DataPoint[] {
   const params: unknown[] = [iso3];
   let where = `country_iso3 = ?`;
-  if (fromYear != null) { where += ` AND year >= ?`; params.push(fromYear); }
-  if (toYear   != null) { where += ` AND year <= ?`; params.push(toYear);   }
+  if (fromYear != null) { params.push(fromYear); where += ` AND year >= ?`; }
+  if (toYear != null)   { params.push(toYear);   where += ` AND year <= ?`; }
   const rows = query<Record<string, unknown>>(
     `SELECT * FROM data_points WHERE ${where} ORDER BY year`,
     params,
@@ -43,7 +32,6 @@ export function getCountryHistory(iso3: string, fromYear?: number, toYear?: numb
   return rows.map(rowToDataPoint);
 }
 
-/** Time series for a single (country, indicator). */
 export function getIndicatorSeries(iso3: string, indicatorId: string): DataPoint[] {
   const rows = query<Record<string, unknown>>(
     `SELECT * FROM data_points
@@ -54,9 +42,7 @@ export function getIndicatorSeries(iso3: string, indicatorId: string): DataPoint
   return rows.map(rowToDataPoint);
 }
 
-/** Latest available value for a country across all indicators. */
 export function getLatestSnapshot(iso3: string): Record<string, { value: number | null; year: number | null }> {
-  // SQLite trick: for each indicator_id, take the row with the max year.
   const rows = query<{ indicator_id: string; value: number | null; year: number }>(
     `SELECT dp.indicator_id, dp.value, dp.year
      FROM data_points dp
@@ -78,31 +64,21 @@ export function getLatestSnapshot(iso3: string): Record<string, { value: number 
   return out;
 }
 
-/** Global rank for an indicator in a given year. Returns 1-indexed rank (1 = best). */
 export function getRankInYear(indicatorId: string, iso3: string, year: number): { rank: number; total: number } | null {
   const rows = query<{ rank: number; total: number }>(
-    `SELECT
-       CAST(RANK() OVER (ORDER BY value DESC) AS INTEGER) AS rank,
-       COUNT(*) AS total
-     FROM data_points
-     WHERE indicator_id = ? AND year = ? AND value IS NOT NULL`,
-    [indicatorId, year],
-  );
-  // Find India's rank
-  const indiaRows = query<{ rank: number }>(
     `WITH ranked AS (
        SELECT country_iso3, RANK() OVER (ORDER BY value DESC) AS rank
        FROM data_points
        WHERE indicator_id = ? AND year = ? AND value IS NOT NULL
      )
-     SELECT rank FROM ranked WHERE country_iso3 = ?`,
-    [indicatorId, year, iso3],
+     SELECT rank, (SELECT COUNT(*) FROM data_points WHERE indicator_id = ? AND year = ? AND value IS NOT NULL) AS total
+     FROM ranked WHERE country_iso3 = ?`,
+    [indicatorId, year, indicatorId, year, iso3],
   );
-  if (!indiaRows[0] || !rows[0]) return null;
-  return { rank: indiaRows[0].rank, total: rows[0].total };
+  if (!rows[0]) return null;
+  return { rank: rows[0].rank, total: rows[0].total };
 }
 
-/** Top N countries for an indicator in a given year. */
 export function getLeaderboard(indicatorId: string, year: number, limit = 30): Array<{ iso3: string; value: number | null }> {
   const rows = query<{ country_iso3: string; value: number | null }>(
     `SELECT country_iso3, value
@@ -115,14 +91,12 @@ export function getLeaderboard(indicatorId: string, year: number, limit = 30): A
   return rows.map((r) => ({ iso3: r.country_iso3, value: r.value }));
 }
 
-/** Country list (for dropdowns, maps, etc.) */
 export function getAllCountries(): Array<{ iso3: string; name: string; region: string | null }> {
   return query<{ iso3: string; name: string; region: string | null }>(
     `SELECT iso3, name, region FROM countries ORDER BY name`,
   );
 }
 
-/** Coverage stats per indicator (data points, countries, year range). */
 export function getIndicatorCoverage(): Array<{
   indicatorId: string;
   indicatorName: string;
@@ -133,33 +107,32 @@ export function getIndicatorCoverage(): Array<{
   firstYear: number | null;
   lastYear: number | null;
 }> {
-  return query(`
-    SELECT
-      i.id AS indicatorId,
-      i.name AS indicatorName,
-      i.category,
-      i.source,
-      COALESCE(cov.dataPoints, 0) AS dataPoints,
-      COALESCE(cov.countriesWithData, 0) AS countriesWithData,
-      cov.firstYear,
-      cov.lastYear
-    FROM indicators i
-    LEFT JOIN (
-      SELECT
-        indicator_id,
-        COUNT(*) AS dataPoints,
-        COUNT(DISTINCT country_iso3) AS countriesWithData,
-        MIN(year) AS firstYear,
-        MAX(year) AS lastYear
-      FROM data_points
-      WHERE value IS NOT NULL
-      GROUP BY indicator_id
-    ) cov ON i.id = cov.indicator_id
-    ORDER BY i.category, i.name
-  `);
+  return query(
+    `SELECT
+       i.id AS "indicatorId",
+       i.name AS "indicatorName",
+       i.category,
+       i.source,
+       COALESCE(cov.dataPoints, 0) AS "dataPoints",
+       COALESCE(cov.countriesWithData, 0) AS "countriesWithData",
+       cov.firstYear,
+       cov.lastYear
+     FROM indicators i
+     LEFT JOIN (
+       SELECT
+         indicator_id,
+         COUNT(*) AS dataPoints,
+         COUNT(DISTINCT country_iso3) AS countriesWithData,
+         MIN(year) AS firstYear,
+         MAX(year) AS lastYear
+       FROM data_points
+       WHERE value IS NOT NULL
+       GROUP BY indicator_id
+     ) cov ON i.id = cov.indicator_id
+     ORDER BY i.category, i.name`,
+  );
 }
 
-/** Latest year with data for a given indicator. */
 export function getLatestYear(indicatorId: string): number | null {
   const rows = query<{ yr: number }>(
     `SELECT MAX(year) AS yr FROM data_points WHERE indicator_id = ? AND value IS NOT NULL`,
@@ -168,7 +141,6 @@ export function getLatestYear(indicatorId: string): number | null {
   return rows[0]?.yr ?? null;
 }
 
-/** Latest value per country for a given indicator (for maps). */
 export function getGlobalLatest(indicatorId: string): Array<{ iso3: string; value: number; year: number }> {
   return query<{ iso3: string; value: number; year: number }>(
     `SELECT dp.country_iso3 AS iso3, dp.value, dp.year
@@ -186,7 +158,6 @@ export function getGlobalLatest(indicatorId: string): Array<{ iso3: string; valu
   );
 }
 
-/** Summary stats for the home page hero. */
 export function getDashboardStats(): {
   totalCountries: number;
   totalIndicators: number;
@@ -195,11 +166,11 @@ export function getDashboardStats(): {
 } {
   const totals = query<{ totalCountries: number; totalIndicators: number; totalDataPoints: number; minYear: number | null; maxYear: number | null }>(
     `SELECT
-       (SELECT COUNT(*) FROM countries) AS totalCountries,
-       (SELECT COUNT(*) FROM indicators) AS totalIndicators,
-       (SELECT COUNT(*) FROM data_points) AS totalDataPoints,
-       (SELECT MIN(year) FROM data_points) AS minYear,
-       (SELECT MAX(year) FROM data_points) AS maxYear`,
+       (SELECT COUNT(*) FROM countries) AS "totalCountries",
+       (SELECT COUNT(*) FROM indicators) AS "totalIndicators",
+       (SELECT COUNT(*) FROM data_points) AS "totalDataPoints",
+       (SELECT MIN(year) FROM data_points) AS "minYear",
+       (SELECT MAX(year) FROM data_points) AS "maxYear"`,
   );
   const t = totals[0];
   return {

@@ -6,7 +6,7 @@
  */
 
 import "dotenv/config";
-import { getDb, execute, query } from "../src/lib/db/client";
+import { getDb } from "../src/lib/db/client";
 
 type DataPoint = {
   indicator_id: string;

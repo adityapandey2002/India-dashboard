@@ -94,10 +94,10 @@ function cosineSimilarity(queryVec: Map<string, number>, docVec: Map<string, num
  * Find the top-k most relevant chunks using local TF-IDF search.
  * Falls back to keyword search if no index exists.
  */
-export async function vectorSearch(
+export function vectorSearch(
   question: string,
   topK: number = 15,
-): Promise<SearchResult[] | null> {
+): SearchResult[] | null {
   const queryTokens = tokenize(question);
   if (queryTokens.length === 0) return null;
 

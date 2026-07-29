@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
     // Try vector search first, fall back to keyword-based context
     let contextChunks: ContextChunk[] = [];
 
-    const vectorResults = await vectorSearch(question);
+    const vectorResults = vectorSearch(question);
 
     if (vectorResults) {
       contextChunks = vectorResults.map((r) => ({
