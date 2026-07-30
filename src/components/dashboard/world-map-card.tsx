@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import * as d3 from "d3-geo";
 import { feature } from "topojson-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown } from "lucide-react";
 
 type Props = {
   indicators: Array<{ id: string; name: string; category: string }>;
@@ -54,9 +54,9 @@ const HISTORICAL_EVENTS = [
   { year: 2020, label: "COVID-19", description: "Global pandemic caused economic contraction, supply chain disruption, and accelerated digital adoption worldwide." },
   { year: 2016, label: "Demonetization", description: "India withdrew ₹500/₹1000 notes (86% of cash), causing short-term GDP dip and accelerated digital payments." },
   { year: 2014, label: "PM Modi elected", description: "Policy shift toward Make in India, GST (2017), IBC (2016), infrastructure push." },
-  { year: 2008, label: "Global Financial Crisis", description: "World trade collapsed; India relatively resilient due to domestic demand and limited financial exposure." },
+  { year: 2008, label: "Global Financial Crisis", description: "World trade collapsed; India relatively resilient due to domestic demand." },
   { year: 2004, label: "Tsunami", description: "Indian Ocean tsunami impacted coastal economies; massive reconstruction spending followed." },
-  { year: 1991, label: "Economic Liberalization", description: "India ended License Raj, opened to FDI, devalued rupee — foundation of modern growth trajectory." },
+  { year: 1991, label: "Economic Liberalization", description: "India ended License Raj, opened to FDI, devalued rupee." },
 ];
 
 export function WorldMapCard({ indicators }: Props) {
@@ -66,7 +66,17 @@ export function WorldMapCard({ indicators }: Props) {
   const [loading, setLoading] = useState(false);
   const [paths, setPaths] = useState<{ id: string; name: string; path: string }[]>([]);
   const [hovered, setHovered] = useState<{ name: string; value: number | null } | null>(null);
+  const [yearsWithData, setYearsWithData] = useState<number[]>([]);
   const geoLoaded = useRef(false);
+
+  const categories = useMemo(() => {
+    const map = new Map<string, Array<{ id: string; name: string }>>();
+    for (const ind of indicators) {
+      if (!map.has(ind.category)) map.set(ind.category, []);
+      map.get(ind.category)!.push({ id: ind.id, name: ind.name });
+    }
+    return [...map.entries()];
+  }, [indicators]);
 
   const currIndicator = indicators.find((i) => i.id === selectedIndicator);
   const currentEvent = selectedYear ? HISTORICAL_EVENTS.find((e) => e.year === selectedYear) : null;
@@ -104,8 +114,12 @@ export function WorldMapCard({ indicators }: Props) {
         const res = await fetch(`/api/indicators/leaderboard?indicator=${selectedIndicator}&limit=250${yearParam}`);
         if (!res.ok) return;
         const json = await res.json();
-        if (!cancelled && json.leaderboard) {
-          setData(new Map(json.leaderboard.map((r: any) => [r.iso3, r.value])));
+        if (!cancelled) {
+          const rows = json.data ?? json.leaderboard ?? [];
+          setData(new Map(rows.map((r: any) => [r.iso3 ?? r.country_iso3, r.value])));
+          if (json.year && !selectedYear) {
+            setYearsWithData((prev) => prev.includes(json.year) ? prev : [...prev, json.year].sort((a, b) => b - a));
+          }
         }
       } catch {
         //
@@ -132,12 +146,6 @@ export function WorldMapCard({ indicators }: Props) {
     return `rgb(${r}, ${g}, ${b})`;
   };
 
-  const yearsWithData = useMemo(() => {
-    // This would ideally come from an API call to get available years
-    // For now, we'll show a range
-    return Array.from({ length: 15 }, (_, i) => 2024 - i);
-  }, []);
-
   return (
     <Card>
       <CardHeader>
@@ -147,10 +155,14 @@ export function WorldMapCard({ indicators }: Props) {
             <select
               value={selectedIndicator}
               onChange={(e) => { setSelectedIndicator(e.target.value); setSelectedYear(null); }}
-              className="text-sm font-normal rounded-lg border border-input bg-transparent px-2 py-1 max-w-[240px]"
+              className="text-sm font-normal rounded-lg border border-input bg-transparent px-2 py-1 max-w-[260px]"
             >
-              {indicators.map((ind) => (
-                <option key={ind.id} value={ind.id}>{ind.name}</option>
+              {categories.map(([cat, inds]) => (
+                <optgroup key={cat} label={cat.replace(/_/g, " ")}>
+                  {inds.map((ind) => (
+                    <option key={ind.id} value={ind.id}>{ind.name}</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             <select
@@ -176,21 +188,25 @@ export function WorldMapCard({ indicators }: Props) {
         {!loading && (
           <div className="relative">
             <svg viewBox="0 0 800 450" className="w-full h-auto" style={{ maxHeight: 400 }}>
-              {paths.map(({ id, name, path }, idx) => (
-                <path
-                  key={`${id}-${idx}`}
-                  d={path || undefined}
-                  fill={getColor(id)}
-                  stroke="#fff"
-                  strokeWidth={0.5}
-                  className="transition-colors duration-150 hover:opacity-80 cursor-pointer"
-                  onMouseEnter={() => {
-                    const v = data.get(GEO_ID_MAP[id] ?? id);
-                    setHovered({ name, value: v ?? null });
-                  }}
-                  onMouseLeave={() => setHovered(null)}
-                />
-              ))}
+              {paths.map(({ id, name, path }, idx) => {
+                const iso3 = GEO_ID_MAP[id] ?? id;
+                return (
+                  <a key={`${id}-${idx}`} href={`/country/${iso3}`} className="cursor-pointer">
+                    <path
+                      d={path || undefined}
+                      fill={getColor(id)}
+                      stroke="#fff"
+                      strokeWidth={0.5}
+                      className="transition-colors duration-150 hover:opacity-80"
+                      onMouseEnter={() => {
+                        const v = data.get(iso3);
+                        setHovered({ name, value: v ?? null });
+                      }}
+                      onMouseLeave={() => setHovered(null)}
+                    />
+                  </a>
+                );
+              })}
             </svg>
             {hovered && (
               <div className="absolute bottom-2 left-2 bg-card border rounded-lg px-3 py-1.5 text-sm shadow-sm pointer-events-none">

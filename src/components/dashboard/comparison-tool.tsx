@@ -7,6 +7,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Search, Sparkles, X } from "lucide-react";
@@ -338,7 +339,7 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                           <div key={d.iso3} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                             <div className="flex items-center gap-2">
                               <span className={`w-2 h-2 rounded-full ${d.iso3 === "IND" ? "bg-amber-500" : DEFAULT_COLORS[barData.indexOf(d) % DEFAULT_COLORS.length]}`} />
-                              <span className="font-medium text-sm">{d.name}</span>
+                              <Link href={`/country/${d.iso3}`} className="font-medium text-sm hover:text-blue-500 transition-colors">{d.name}</Link>
                             </div>
                             <div className="text-right">
                               <div className="font-mono text-sm">
@@ -371,7 +372,9 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                 <TableRow>
                   <TableHead>Year</TableHead>
                   {selectedCountries.map((iso3) => (
-                    <TableHead key={iso3} className="text-right">{countryMap.get(iso3) ?? iso3}</TableHead>
+                    <TableHead key={iso3} className="text-right">
+                      <Link href={`/country/${iso3}`} className="hover:text-blue-500 transition-colors">{countryMap.get(iso3) ?? iso3}</Link>
+                    </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>

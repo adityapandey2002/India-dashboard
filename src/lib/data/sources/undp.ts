@@ -55,6 +55,7 @@ const VARIABLE_MAP: Record<string, { id: string; category: string; source: strin
   mmr:       { id: "maternal_mortality",   category: "healthcare",  source: "undp_hdr" },
   co2_prod:  { id: "co2_per_capita",       category: "environment", source: "undp_hdr" },
   pop_total: { id: "population_total",     category: "society",     source: "undp_hdr" },
+  edu:       { id: "education_idx",        category: "education",   source: "undp_hdr" },
 };
 
 export type UndpDataPoint = {
@@ -120,6 +121,8 @@ export function parseUndpCsv(csvPath: string): UndpDataPoint[] {
   }
 
   const out: UndpDataPoint[] = [];
+  // Collect eys/mys for education_idx computation
+  const eduIndexData = new Map<string, { eys?: number; mys?: number }>();
   for (let li = 1; li < lines.length; li++) {
     const cols = splitCsvLine(lines[li]);
     const iso3 = cols[0];
@@ -130,6 +133,24 @@ export function parseUndpCsv(csvPath: string): UndpDataPoint[] {
       const v = parseFloat(raw);
       if (Number.isNaN(v)) continue;
       out.push({ iso3, variable: meta.variable, year: meta.year, value: v });
+      // Track eys/mys for education index computation
+      if (meta.variable === "eys" || meta.variable === "mys") {
+        const key = `${iso3}:${meta.year}`;
+        if (!eduIndexData.has(key)) eduIndexData.set(key, {});
+        const entry = eduIndexData.get(key)!;
+        if (meta.variable === "eys") entry.eys = v;
+        if (meta.variable === "mys") entry.mys = v;
+      }
+    }
+  }
+  // Compute education_idx = ((eys/18) + (mys/15)) / 2
+  for (const [key, vals] of eduIndexData) {
+    if (vals.eys != null && vals.mys != null) {
+      const eysi = vals.eys / 18;
+      const mysi = vals.mys / 15;
+      const eduIdx = (eysi + mysi) / 2;
+      const [iso3, yearStr] = key.split(":");
+      out.push({ iso3, variable: "edu", year: parseInt(yearStr, 10), value: eduIdx });
     }
   }
   return out;

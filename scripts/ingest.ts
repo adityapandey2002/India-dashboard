@@ -26,6 +26,10 @@ import { fetchOwidCo2Data } from "../src/lib/data/sources/owid";
 import { fetchWgiData } from "../src/lib/data/sources/wgi";
 import { fetchTiCpi } from "../src/lib/data/sources/ti";
 import { fetchUnEGov } from "../src/lib/data/sources/un-egov";
+import { fetchOwidIndicators } from "../src/lib/data/sources/owid-generic";
+import { fetchNumbeoIndices } from "../src/lib/data/sources/numbeo";
+import { fetchExtraIndicators } from "../src/lib/data/sources/extra";
+import { fetchSdgIndex } from "../src/lib/data/sources/sdg";
 
 const FOCUS_COUNTRIES = [
   "IND", "USA", "CHN", "JPN", "DEU", "GBR", "FRA", "BRA", "RUS", "CAN",
@@ -37,24 +41,45 @@ const SOURCES = [
   { id: "world_bank", name: "World Bank Open Data", url: "https://data.worldbank.org/", type: "api" },
   { id: "undp",       name: "UNDP Human Development Reports", url: "https://hdr.undp.org/", type: "api" },
   { id: "who",        name: "World Health Organization GHO", url: "https://www.who.int/data/gho", type: "api" },
-  { id: "wef",        name: "World Economic Forum", url: "https://www.weforum.org/", type: "pdf" },
+  { id: "wef",        name: "World Economic Forum", url: "https://www.weforum.org/", type: "api" },
   { id: "ti",         name: "Transparency International CPI", url: "https://www.transparency.org/", type: "api" },
   { id: "un",         name: "UN E-Government Survey", url: "https://publicadministration.un.org/egovkb/", type: "api" },
+  { id: "ei",         name: "Economist Intelligence Unit", url: "https://www.eiu.com/", type: "api" },
+  { id: "ihme",       name: "IHME Global Health Data", url: "https://www.healthdata.org/", type: "api" },
+  { id: "oecd",       name: "OECD PISA", url: "https://www.oecd.org/pisa/", type: "api" },
+  { id: "rsf",        name: "Reporters Without Borders", url: "https://rsf.org/", type: "api" },
+  { id: "heritage",   name: "Heritage Foundation", url: "https://www.heritage.org/", type: "api" },
+  { id: "iep",        name: "Institute for Economics & Peace", url: "https://www.economicsandpeace.org/", type: "api" },
   { id: "wjp",        name: "World Justice Project", url: "https://worldjusticeproject.org/", type: "pdf" },
   { id: "yale",       name: "Yale Environmental Performance Index", url: "https://epi.yale.edu/", type: "pdf" },
   { id: "germanwatch",name: "Germanwatch CCPI", url: "https://www.germanwatch.org/", type: "pdf" },
+  { id: "numbeo",     name: "Numbeo", url: "https://www.numbeo.com/", type: "api" },
+  { id: "gtd",        name: "Global Terrorism Database", url: "https://www.start.umd.edu/gtd/", type: "api" },
+  { id: "inform",     name: "INFORM Risk Index", url: "https://drmkc.jrc.ec.europa.eu/inform-index/", type: "api" },
+  { id: "ibp",        name: "International Budget Partnership", url: "https://internationalbudget.org/", type: "api" },
   { id: "imd",        name: "IMD World Competitiveness", url: "https://www.imd.org/", type: "pdf" },
   { id: "oxford",     name: "Oxford Insights AI Readiness", url: "https://www.oxfordinsights.com/", type: "pdf" },
+  { id: "sspi",       name: "Social Progress Imperative", url: "https://www.socialprogress.org/", type: "pdf" },
+  { id: "sdg",        name: "SDG Transformation Center", url: "https://sdgtransformationcenter.org/", type: "pdf" },
+  { id: "iqair",      name: "IQAir", url: "https://www.iqair.com/", type: "api" },
+  { id: "turtle",     name: "Portulans Institute", url: "https://portulansinstitute.org/", type: "pdf" },
+  { id: "startupblink", name: "StartupBlink", url: "https://www.startupblink.com/", type: "api" },
+  { id: "ookla",      name: "Ookla Speedtest", url: "https://www.speedtest.net/", type: "api" },
+  { id: "qs",         name: "QS World University Rankings", url: "https://www.qs.com/", type: "pdf" },
+  { id: "od",         name: "Open Data Watch", url: "https://opendatawatch.com/", type: "pdf" },
+  { id: "itu",        name: "ITU ICT Development", url: "https://www.itu.int/", type: "api" },
+  { id: "wipo",       name: "WIPO Global Innovation Index", url: "https://www.wipo.int/", type: "pdf" },
+  { id: "vdem",       name: "V-Dem Institute", url: "https://www.v-dem.net/", type: "api" },
 ];
 
-const CONCURRENCY = 5;          // parallel fetches
-const STALE_HOURS = 24;         // re-fetch if older than this
-const FROM_YEAR = 2010;         // 14-year window is enough for trends
+const CONCURRENCY = 5;
+const STALE_HOURS = 24;
+const FROM_YEAR = 2010;
 
 async function seedStatic() {
   console.log("📚 Seeding source registry...");
   for (const s of SOURCES) {
-    execute(
+    await execute(
       `INSERT INTO sources (id, name, url, type) VALUES (?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET name=excluded.name, url=excluded.url, type=excluded.type`,
       [s.id, s.name, s.url, s.type],
@@ -63,7 +88,7 @@ async function seedStatic() {
 
   console.log("📊 Seeding indicator registry...");
   for (const ind of INDICATORS) {
-    execute(
+    await execute(
       `INSERT INTO indicators (id, name, category, source, source_id, unit, description, update_freq)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
@@ -78,7 +103,7 @@ async function seedStatic() {
   const countries = await fetchAllCountries();
   console.log(`   Found ${countries.length} countries. Seeding...`);
   for (const c of countries) {
-    execute(
+    await execute(
       `INSERT INTO countries (iso3, iso2, name, region, income_group, latitude, longitude)
        VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(iso3) DO UPDATE SET
@@ -96,8 +121,8 @@ async function seedStatic() {
 }
 
 /** Has this indicator been refreshed in the last STALE_HOURS? */
-function isFresh(indicatorId: string): boolean {
-  const row = query<{ max: string | null }>(
+async function isFresh(indicatorId: string): Promise<boolean> {
+  const row = await query<{ max: string | null }>(
     `SELECT MAX(fetched_at) AS max FROM data_points WHERE indicator_id = ?`,
     [indicatorId],
   );
@@ -107,14 +132,14 @@ function isFresh(indicatorId: string): boolean {
 }
 
 async function runOne(ind: typeof INDICATORS[number]) {
-  if (isFresh(ind.id)) {
+  if (await isFresh(ind.id)) {
     return { ok: true as const, count: 0, skipped: true };
   }
   const t0 = Date.now();
   const pts = await fetchIndicator(ind.sourceId, FOCUS_COUNTRIES, FROM_YEAR, new Date().getFullYear());
   const now = new Date().toISOString();
   for (const p of pts) {
-    execute(
+    await execute(
       `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
        VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
@@ -145,10 +170,10 @@ async function main() {
   const t0 = Date.now();
   console.log("🚀 India Dashboard — data ingestion starting...\n");
 
-  getDb(); // run migrations
+  await getDb();
   await seedStatic();
 
-  const knownRows = query<{ iso3: string }>(`SELECT iso3 FROM countries`);
+  const knownRows = await query<{ iso3: string }>(`SELECT iso3 FROM countries`);
   const knownCountries = new Set(knownRows.map((r) => r.iso3));
 
   const wbIndicators = INDICATORS.filter((i) => i.source === "world_bank");
@@ -181,16 +206,14 @@ async function main() {
   console.log(`\n📥 Ingesting UNDP HDR data...`);
   try {
     await downloadUndpCsvAsync();
-    const undpPoints = parseUndpCsv(
-      path.join(process.cwd(), "data", "raw", "undp_hdr.csv"),
-    );
+    const undpPoints = parseUndpCsv(path.join(process.cwd(), "data", "raw", "undp_hdr.csv"));
     const varMap = getUndpVariableMap();
     let undpInserted = 0;
     const now = new Date().toISOString();
     for (const pt of undpPoints) {
       const mapped = varMap[pt.variable];
       if (!mapped) continue;
-      execute(
+      await execute(
         `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
          VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
@@ -212,7 +235,7 @@ async function main() {
   const whoIndicators = INDICATORS.filter((i) => i.source === "who");
   for (const ind of whoIndicators) {
     try {
-      if (isFresh(ind.id)) {
+      if (await isFresh(ind.id)) {
         skipped++;
         console.log(`  ⏭  ${ind.id.padEnd(22)} (fresh, skipped)`);
         continue;
@@ -220,7 +243,7 @@ async function main() {
       const pts = (await fetchWhoIndicatorData(ind.id)).filter((p) => knownCountries.has(p.iso3));
       const now = new Date().toISOString();
       for (const p of pts) {
-        execute(
+        await execute(
           `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
            VALUES (?, ?, ?, ?, ?)
            ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
@@ -240,9 +263,11 @@ async function main() {
   // ── OWID CO2 ─────────────────────────────────────────────────
   console.log(`\n📥 Ingesting OWID CO2 data...`);
   const owidIndicators = INDICATORS.filter((i) => i.source === "owid");
-  for (const ind of owidIndicators) {
+  const owidExtra = ["co2_emissions_total"];
+  const allOwidIndicators = [...owidIndicators, ...INDICATORS.filter((i) => owidExtra.includes(i.id))];
+  for (const ind of allOwidIndicators) {
     try {
-      if (isFresh(ind.id)) {
+      if (await isFresh(ind.id)) {
         skipped++;
         console.log(`  ⏭  ${ind.id.padEnd(22)} (fresh, skipped)`);
         continue;
@@ -250,7 +275,7 @@ async function main() {
       const pts = (await fetchOwidCo2Data(ind.id)).filter((p) => knownCountries.has(p.iso3));
       const now = new Date().toISOString();
       for (const p of pts) {
-        execute(
+        await execute(
           `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
            VALUES (?, ?, ?, ?, ?)
            ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
@@ -272,14 +297,14 @@ async function main() {
   try {
     const wgiIndIds = INDICATORS.filter((i) => i.source === "wgi").map((i) => i.id);
     if (wgiIndIds.length > 0) {
-      const allFresh = wgiIndIds.every((id) => isFresh(id));
+      const allFresh = await Promise.all(wgiIndIds.map((id) => isFresh(id))).then((r) => r.every(Boolean));
       if (!allFresh) {
         const wgiPts = (await fetchWgiData()).filter((p) => knownCountries.has(p.iso3));
         const now = new Date().toISOString();
         let inserted = 0;
         for (const p of wgiPts) {
           if (!wgiIndIds.includes(p.indicatorId)) continue;
-          execute(
+          await execute(
             `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
              VALUES (?, ?, ?, ?, ?)
              ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
@@ -301,18 +326,86 @@ async function main() {
     console.log(`  ✗ WGI FAILED: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  // ── OWID Generic Datasets ──────────────────────────────────
+  console.log(`\n📥 Ingesting OWID generic datasets...`);
+  try {
+    const owidIndicators = INDICATORS.filter((i) =>
+      ["wef", "ei", "ihme", "oecd", "rsf", "heritage", "iep", "gtd", "ibp", "inform"].includes(i.source)
+    );
+    if (owidIndicators.length > 0) {
+      const allFresh = await Promise.all(owidIndicators.map((i) => isFresh(i.id))).then((r) => r.every(Boolean));
+      if (!allFresh) {
+        const owidPts = (await fetchOwidIndicators()).filter((p) => knownCountries.has(p.iso3));
+        const now = new Date().toISOString();
+        let inserted = 0;
+        for (const p of owidPts) {
+          await execute(
+            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
+               value=excluded.value, fetched_at=excluded.fetched_at`,
+            [p.iso3, p.indicatorId, p.year, p.value, now],
+          );
+          inserted++;
+        }
+        totalPoints += inserted;
+        successes++;
+        console.log(`  ✓ OWID generic ${String(inserted).padStart(4)} pts`);
+      } else {
+        skipped++;
+        console.log(`  ⏭  OWID generic (fresh, skipped)`);
+      }
+    }
+  } catch (err) {
+    failures++;
+    console.log(`  ✗ OWID generic FAILED: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // ── Numbeo Indices ──────────────────────────────────────────
+  console.log(`\n📥 Ingesting Numbeo indices...`);
+  try {
+    const numbeoIndicators = INDICATORS.filter((i) => i.source === "numbeo");
+    if (numbeoIndicators.length > 0) {
+      const allFresh = await Promise.all(numbeoIndicators.map((i) => isFresh(i.id))).then((r) => r.every(Boolean));
+      if (!allFresh) {
+        const numbeoPts = (await fetchNumbeoIndices()).filter((p) => knownCountries.has(p.iso3));
+        const now = new Date().toISOString();
+        let inserted = 0;
+        for (const p of numbeoPts) {
+          await execute(
+            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
+               value=excluded.value, fetched_at=excluded.fetched_at`,
+            [p.iso3, p.indicatorId, p.year, p.value, now],
+          );
+          inserted++;
+        }
+        totalPoints += inserted;
+        successes++;
+        console.log(`  ✓ Numbeo ${String(inserted).padStart(4)} pts`);
+      } else {
+        skipped++;
+        console.log(`  ⏭  Numbeo (fresh, skipped)`);
+      }
+    }
+  } catch (err) {
+    failures++;
+    console.log(`  ✗ Numbeo FAILED: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   // ── TI Corruption Perceptions Index ─────────────────────────
   console.log(`\n📥 Ingesting TI Corruption Perceptions Index...`);
   try {
     const tiIndicators = INDICATORS.filter((i) => i.source === "ti");
     if (tiIndicators.length > 0) {
-      const allFresh = tiIndicators.every((i) => isFresh(i.id));
+      const allFresh = await Promise.all(tiIndicators.map((i) => isFresh(i.id))).then((r) => r.every(Boolean));
       if (!allFresh) {
         const tiPts = (await fetchTiCpi()).filter((p) => knownCountries.has(p.iso3));
         const now = new Date().toISOString();
         let inserted = 0;
         for (const p of tiPts) {
-          execute(
+          await execute(
             `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
              VALUES (?, ?, ?, ?, ?)
              ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
@@ -339,13 +432,13 @@ async function main() {
   try {
     const unIndicators = INDICATORS.filter((i) => i.source === "un");
     if (unIndicators.length > 0) {
-      const allFresh = unIndicators.every((i) => isFresh(i.id));
+      const allFresh = await Promise.all(unIndicators.map((i) => isFresh(i.id))).then((r) => r.every(Boolean));
       if (!allFresh) {
         const unPts = (await fetchUnEGov()).filter((p) => knownCountries.has(p.iso3));
         const now = new Date().toISOString();
         let inserted = 0;
         for (const p of unPts) {
-          execute(
+          await execute(
             `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
              VALUES (?, ?, ?, ?, ?)
              ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
@@ -367,8 +460,75 @@ async function main() {
     console.log(`  ✗ UN E-Gov FAILED: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  // ── Extra Indicators (OWID grapher: democracy_idx, rule_of_law, refugee, etc.) ──
+  console.log(`\n📥 Ingesting extra OWID grapher indicators...`);
+  try {
+    const extraIndicatorIds = ["democracy_idx", "rule_of_law", "refugee_population", "multidim_poverty"];
+    const extraTargets = INDICATORS.filter((i) => extraIndicatorIds.includes(i.id));
+    if (extraTargets.length > 0) {
+      const allFresh = await Promise.all(extraTargets.map((i) => isFresh(i.id))).then((r) => r.every(Boolean));
+      if (!allFresh) {
+        const extraPts = (await fetchExtraIndicators()).filter((p) => knownCountries.has(p.iso3));
+        const now = new Date().toISOString();
+        let inserted = 0;
+        for (const p of extraPts) {
+          await execute(
+            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
+               value=excluded.value, fetched_at=excluded.fetched_at`,
+            [p.iso3, p.indicatorId, p.year, p.value, now],
+          );
+          inserted++;
+        }
+        totalPoints += inserted;
+        successes++;
+        console.log(`  ✓ Extra OWID grapher ${String(inserted).padStart(4)} pts`);
+      } else {
+        skipped++;
+        console.log(`  ⏭  Extra OWID grapher (fresh, skipped)`);
+      }
+    }
+  } catch (err) {
+    failures++;
+    console.log(`  ✗ Extra OWID grapher FAILED: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // ── SDG Index Score (SDSN) ────────────────────────────────────
+  console.log(`\n📥 Ingesting SDG Index data...`);
+  try {
+    const sdgIndicators = INDICATORS.filter((i) => i.source === "sdg");
+    if (sdgIndicators.length > 0) {
+      const allFresh = await Promise.all(sdgIndicators.map((i) => isFresh(i.id))).then((r) => r.every(Boolean));
+      if (!allFresh) {
+        const sdgPts = (await fetchSdgIndex()).filter((p) => knownCountries.has(p.iso3));
+        const now = new Date().toISOString();
+        let inserted = 0;
+        for (const p of sdgPts) {
+          await execute(
+            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
+               value=excluded.value, fetched_at=excluded.fetched_at`,
+            [p.iso3, p.indicatorId, p.year, p.value, now],
+          );
+          inserted++;
+        }
+        totalPoints += inserted;
+        successes++;
+        console.log(`  ✓ SDG Index ${String(inserted).padStart(4)} pts`);
+      } else {
+        skipped++;
+        console.log(`  ⏭  SDG Index (fresh, skipped)`);
+      }
+    }
+  } catch (err) {
+    failures++;
+    console.log(`  ✗ SDG Index FAILED: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-  const totals = query<{ n: number }>(`SELECT COUNT(*) AS n FROM data_points`);
+  const totals = await query<{ n: number }>(`SELECT COUNT(*) AS n FROM data_points`);
   console.log(`\n✅ Done in ${elapsed}s`);
   console.log(`   ${successes} fetched, ${skipped} skipped, ${failures} failed, ${totalPoints} new points.`);
   console.log(`   DB now contains ${totals[0]?.n ?? 0} data points.`);

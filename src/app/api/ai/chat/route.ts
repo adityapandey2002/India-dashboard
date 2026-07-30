@@ -15,13 +15,13 @@ type ContextChunk = {
   source: string;
 };
 
-function buildContext(question: string): ContextChunk[] {
+async function buildContext(question: string): Promise<ContextChunk[]> {
   const chunks: ContextChunk[] = [];
   const lowerQ = question.toLowerCase();
 
   // 1. India-specific data
   if (lowerQ.includes("india")) {
-    const indiaData = query<{ indicator_id: string; value: number; year: number }>(
+    const indiaData = await query<{ indicator_id: string; value: number; year: number }>(
       `SELECT indicator_id, value, year FROM data_points 
        WHERE country_iso3 = 'IND' AND value IS NOT NULL 
        ORDER BY indicator_id, year`,
@@ -40,13 +40,13 @@ function buildContext(question: string): ContextChunk[] {
   
   for (const keyword of indicatorKeywords) {
     if (lowerQ.includes(keyword)) {
-      const indicators = query<{ id: string; name: string }>(
+      const indicators = await query<{ id: string; name: string }>(
         `SELECT id, name FROM indicators WHERE name LIKE ? OR id LIKE ?`,
         [`%${keyword}%`, `%${keyword}%`],
       );
       
       for (const ind of indicators.slice(0, 3)) {
-        const leaderboard = query<{ country_iso3: string; value: number; year: number }>(
+        const leaderboard = await query<{ country_iso3: string; value: number; year: number }>(
           `SELECT country_iso3, value, year FROM data_points
            WHERE indicator_id = ? AND value IS NOT NULL
            ORDER BY year DESC, value DESC
@@ -74,13 +74,13 @@ function buildContext(question: string): ContextChunk[] {
     const indicatorMatches = lowerQ.match(/(gdp|hdi|life expectancy|internet|co2|education|health|population|urban|trade|patent|mobile|electricity)/g);
     if (indicatorMatches) {
       for (const kw of indicatorMatches) {
-        const indicators = query<{ id: string; name: string }>(
+        const indicators = await query<{ id: string; name: string }>(
           `SELECT id, name FROM indicators WHERE name LIKE ? OR id LIKE ?`,
           [`%${kw}%`, `%${kw}%`],
         );
         
         for (const ind of indicators.slice(0, 2)) {
-          const series = query<{ country_iso3: string; year: number; value: number }>(
+          const series = await query<{ country_iso3: string; year: number; value: number }>(
             `SELECT country_iso3, year, value FROM data_points
              WHERE indicator_id = ? AND country_iso3 IN ('IND','USA','CHN','BRA','ZAF') AND value IS NOT NULL
              ORDER BY country_iso3, year`,
@@ -143,7 +143,7 @@ function buildContext(question: string): ContextChunk[] {
       };
       const iso3 = isoMap[c.toLowerCase()];
       if (iso3) {
-        const snap = query<{ indicator_id: string; value: number; year: number }>(
+        const snap = await query<{ indicator_id: string; value: number; year: number }>(
           `SELECT indicator_id, value, year FROM data_points 
            WHERE country_iso3 = ? AND value IS NOT NULL 
            ORDER BY indicator_id, year DESC LIMIT 15`,
@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
     // Try vector search first, fall back to keyword-based context
     let contextChunks: ContextChunk[] = [];
 
-    const vectorResults = vectorSearch(question);
+    const vectorResults = await vectorSearch(question);
 
     if (vectorResults) {
       contextChunks = vectorResults.map((r) => ({
@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
         source: r.source,
       }));
     } else {
-      contextChunks = buildContext(question);
+      contextChunks = await buildContext(question);
     }
 
     if (contextChunks.length === 0) {

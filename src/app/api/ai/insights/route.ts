@@ -1,59 +1,68 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateInsight } from "@/lib/ai";
 import { getLatestSnapshot, getIndicatorSeries, getAllCountries, getLeaderboard } from "@/lib/db/queries";
+import { Groq } from "groq-sdk";
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
+
+function buildStatsPrompt(
+  iso3: string,
+  snapshot: Record<string, { value: number | null; year: number | null }>,
+): string {
+  const lines = [`Current metrics for ${iso3}:`];
+  for (const [id, v] of Object.entries(snapshot)) {
+    if (v.value != null) {
+      lines.push(`  ${id}: ${v.value} (${v.year})`);
+    }
+  }
+  return lines.join("\n");
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { country = "IND", indicator, question } = await req.json();
+    const { iso3 = "IND", year } = await req.json();
+    const [snapshot, countries, co2Data, gdpData, hdiData, lifeExpData, leaderboard] = await Promise.all([
+      getLatestSnapshot(iso3),
+      getAllCountries(),
+      getIndicatorSeries(iso3, "co2_per_capita"),
+      getIndicatorSeries(iso3, "gdp_current_usd"),
+      getIndicatorSeries(iso3, "hdi"),
+      getIndicatorSeries(iso3, "life_expectancy"),
+      getLeaderboard("gdp_current_usd", year ?? new Date().getFullYear(), 10),
+    ]);
 
-    if (!question) {
-      return NextResponse.json({ error: "question is required" }, { status: 400 });
-    }
+    const countryName = countries.find((c) => c.iso3 === iso3)?.name ?? iso3;
 
-    const snapshot = getLatestSnapshot(country);
-    const countries = getAllCountries();
-    const countryName = countries.find((c) => c.iso3 === country)?.name ?? country;
+    // Build trend summaries
+    const getTrend = (data: Array<{ year: number; value: number | null }>) => {
+      const recent = data.filter((d) => d.value != null).slice(-3);
+      if (recent.length < 2) return "insufficient data";
+      if (recent[recent.length - 1].value! > recent[0].value!) return "upward trend";
+      return "downward trend";
+    };
 
-    let context = `Country: ${countryName} (${country})\n\n`;
+    const prompt = `You are an expert data analyst analyzing ${countryName} (${iso3}).
 
-    if (indicator && snapshot[indicator]) {
-      const series = getIndicatorSeries(country, indicator);
-      const latest = snapshot[indicator];
-      context += `Indicator: ${indicator}\nLatest value (${latest.year}): ${latest.value}\n`;
+${buildStatsPrompt(iso3, snapshot)}
 
-      if (series.length > 0) {
-        const years = series.filter((p) => p.value != null).map((p) => p.year);
-        const values = series.filter((p) => p.value != null).map((p) => p.value!);
-        if (values.length >= 2) {
-          const trend = ((values[values.length - 1] - values[0]) / values[0] * 100).toFixed(1);
-          context += `Trend (${years[0]}-${years[years.length - 1]}): ${trend}% change\n`;
-        }
-        const leaderboard = getLeaderboard(indicator, years[years.length - 1], 5);
-        context += `Global rank in ${years[years.length - 1]}: #${leaderboard.findIndex((r) => r.iso3 === country) + 1} of ${leaderboard.length}\n`;
-        context += `Top 5: ${leaderboard.slice(0, 5).map((r) => countries.find((c) => c.iso3 === r.iso3)?.name ?? r.iso3).join(", ")}\n`;
-      }
-    } else {
-      const topKeys = Object.entries(snapshot).slice(0, 10);
-      context += "Latest indicator snapshots:\n";
-      for (const [key, val] of topKeys) {
-        context += `  ${key}: ${val.value} (${val.year})\n`;
-      }
-    }
+Recent trends:
+- GDP per capita: ${getTrend(gdpData)}
+- HDI: ${getTrend(hdiData)}
+- Life expectancy: ${getTrend(lifeExpData)}
+- CO2 per capita: ${getTrend(co2Data)}
 
-    const insight = await generateInsight(context, question);
+Top 3 global economies:
+${leaderboard.slice(0, 3).map((r, i) => `  ${i + 1}. ${r.iso3}: $${(r.value ?? 0).toLocaleString()}`).join("\n")}
 
-    if (!insight) {
-      return NextResponse.json({
-        insight: null,
-        note: "AI insights require GROQ_API_KEY in environment variables.",
-      });
-    }
+Provide a brief 3-sentence analysis of what these numbers mean together for ${countryName}.`;
 
-    return NextResponse.json({ insight, country, indicator, question });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 },
-    );
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      max_tokens: 300,
+    });
+
+    return NextResponse.json({ analysis: completion.choices[0]?.message?.content ?? "" });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

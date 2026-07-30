@@ -8,7 +8,8 @@ export type OwidDataPoint = {
 };
 
 export async function fetchOwidCo2Data(indicatorId: string): Promise<OwidDataPoint[]> {
-  if (indicatorId !== "co2_per_capita") return [];
+  const allowed = new Set(["co2_per_capita", "co2_emissions_total"]);
+  if (!allowed.has(indicatorId)) return [];
 
   try {
     const res = await fetch(OWID_CO2_URL, {
@@ -21,17 +22,21 @@ export async function fetchOwidCo2Data(indicatorId: string): Promise<OwidDataPoi
     if (lines.length < 2) return [];
 
     const headers = lines[0].split(",");
-    const co2Col = headers.indexOf("co2_per_capita");
     const isoCol = headers.indexOf("iso_code");
     const yearCol = headers.indexOf("year");
-    if (co2Col < 0 || isoCol < 0 || yearCol < 0) return [];
+    const colMap: Record<string, number> = {
+      co2_per_capita: headers.indexOf("co2_per_capita"),
+      co2_emissions_total: headers.indexOf("co2"),
+    };
+    const valCol = colMap[indicatorId];
+    if (valCol < 0 || isoCol < 0 || yearCol < 0) return [];
 
     const points: OwidDataPoint[] = [];
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCsvLine(lines[i]);
       const iso3 = cols[isoCol]?.trim();
       const year = parseInt(cols[yearCol]?.trim(), 10);
-      const val = cols[co2Col]?.trim();
+      const val = cols[valCol]?.trim();
 
       if (!iso3 || iso3.length !== 3 || !year || year < 2010) continue;
       if (!val || val === "") continue;

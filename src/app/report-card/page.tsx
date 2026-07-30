@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ExportButtons } from "@/components/dashboard/export-buttons";
@@ -41,11 +43,13 @@ function getTrend(current: number | null, previous: number | null) {
 }
 
 export default async function ReportCardPage() {
-  const stats = getDashboardStats();
-  const snapshot = getLatestSnapshot(INDIA);
-  const countries = getAllCountries();
+  const [stats, snapshot, countries, allIndicators] = await Promise.all([
+    getDashboardStats(),
+    getLatestSnapshot(INDIA),
+    getAllCountries(),
+    getAllIndicators(),
+  ]);
   const countryMap = new Map(countries.map((c) => [c.iso3, c.name]));
-  const allIndicators = getAllIndicators();
 
   // Get top 5 indicators per category with data
   const categories = [...new Set(allIndicators.map((i) => i.category))];
@@ -59,12 +63,13 @@ export default async function ReportCardPage() {
     const entries = await Promise.all(catIndicators.slice(0, 5).map(async (ind) => {
       const val = snapshot[ind.id]?.value;
       const yr = snapshot[ind.id]?.year;
-      const rank = val != null && yr != null ? getRankInYear(ind.id, INDIA, yr) : null;
+      const rank = val != null && yr != null ? await getRankInYear(ind.id, INDIA, yr) : null;
       const prevYr = yr ? yr - 1 : null;
-      const prevVal = prevYr ? query<{ value: number }>(
+      const prevRows = prevYr ? await query<{ value: number }>(
         `SELECT value FROM data_points WHERE indicator_id = ? AND country_iso3 = ? AND year = ?`,
         [ind.id, INDIA, prevYr]
-      )[0]?.value : null;
+      ) : [];
+      const prevVal = prevRows[0]?.value ?? null;
       const trend = getTrend(val, prevVal);
       return {
         id: ind.id,
@@ -94,7 +99,7 @@ export default async function ReportCardPage() {
           </div>
           <h1 className="text-4xl font-bold tracking-tight">India {reportYear} Report Card</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            A data-driven assessment of India's global standing across 10 categories. 
+            A data-driven assessment of India&apos;s global standing across 10 categories. 
             Based on {stats.totalDataPoints.toLocaleString()} data points from {stats.totalIndicators} indicators across {stats.totalCountries} countries.
           </p>
           <div className="flex flex-wrap justify-center gap-2 mt-4">
@@ -176,7 +181,7 @@ export default async function ReportCardPage() {
         {/* Footer */}
         <div className="border-t pt-6 text-center text-sm text-muted-foreground space-y-2">
           <p>Data sources: World Bank, UNDP, WHO, Our World in Data, World Governance Indicators</p>
-          <p>Generated on {new Date().toLocaleDateString()} • India in the World Dashboard</p>
+          <p>Generated on {new Date().toLocaleDateString()} &bull; India in the World Dashboard</p>
           <ExportButtons
             reportData={Object.fromEntries(
               Object.entries(reportData).map(([cat, entries]) => [

@@ -1,8 +1,3 @@
-/**
- * Fetcher for UN E-Government Development Index and E-Participation Index.
- * Uses data from the UN public data portal via a known CSV mirror.
- */
-
 export type UnDataPoint = {
   iso3: string;
   indicatorId: string;
@@ -28,60 +23,63 @@ const KNOWN_ISO = new Set([
   "ZMB","ZWE",
 ]);
 
-/** Try multiple known WB API codes for EGDI and E-Participation */
-const EGOV_CODES: Record<string, string> = {
-  "SG.ODI.INTL.EC.XQ": "egov_idx",
-  "SG.GOV.ELEC": "egov_idx",
-  "UN.OGDI.EST": "egov_idx",
-};
-
-const EPARTICIPATION_CODES: Record<string, string> = {
-  "SG.ODI.INTL.PC.XQ": "eparticipation",
-  "UN.OGDI.EPT": "eparticipation",
-  "SG.GOV.PART": "eparticipation",
-};
-
-async function fetchWbSeries(codes: Record<string, string>, fromYear = 2010): Promise<UnDataPoint[]> {
-  const points: UnDataPoint[] = [];
-
-  for (const [wbCode, indicatorId] of Object.entries(codes)) {
-    const url = `https://api.worldbank.org/v2/country/all/indicator/${wbCode}?format=json&per_page=5000&date=${fromYear}:2025`;
-    try {
-      const res = await fetch(url, {
-        headers: { "User-Agent": "IndiaDashboard/0.1" },
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!res.ok) continue;
-
-      const json = await res.json();
-      if (!Array.isArray(json) || json.length < 2) continue;
-
-      const records = json[1] as Array<{ countryiso3code: string; date: string; value: number | null }>;
-      if (!Array.isArray(records) || records.length === 0) continue;
-
-      let count = 0;
-      for (const r of records) {
-        if (r?.value == null) continue;
-        const iso3 = r.countryiso3code?.toUpperCase();
-        if (!iso3 || !KNOWN_ISO.has(iso3)) continue;
-        const year = parseInt(r?.date, 10);
-        if (isNaN(year)) continue;
-        points.push({ iso3, indicatorId, year, value: r.value });
-        count++;
-      }
-      if (count > 0) break; // found working code, skip remaining
-    } catch {
-      continue;
-    }
-  }
-
-  return points;
-}
+const EGDI_URL = "https://data360files.worldbank.org/data360-data/data/UN_EGDI/UN_EGDI_EGDI_WIDEF.csv";
 
 export async function fetchUnEGov(): Promise<UnDataPoint[]> {
-  const [egdi, epart] = await Promise.all([
-    fetchWbSeries(EGOV_CODES),
-    fetchWbSeries(EPARTICIPATION_CODES),
-  ]);
-  return [...egdi, ...epart];
+  try {
+    const res = await fetch(EGDI_URL, {
+      headers: { "User-Agent": "IndiaDashboard/0.1" },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return [];
+
+    const text = await res.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) return [];
+
+    const headers = parseCsvLine(lines[0]);
+    const yearCols: { index: number; year: number }[] = [];
+    for (let i = 0; i < headers.length; i++) {
+      const y = parseInt(headers[i], 10);
+      if (!isNaN(y) && y >= 2000) {
+        yearCols.push({ index: i, year: y });
+      }
+    }
+
+    // Find the REF_AREA (iso3) column
+    const refAreaIdx = headers.indexOf("REF_AREA");
+    if (refAreaIdx < 0) return [];
+
+    const points: UnDataPoint[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCsvLine(lines[i]);
+      const iso3 = cols[refAreaIdx]?.toUpperCase();
+      if (!iso3 || !KNOWN_ISO.has(iso3)) continue;
+
+      for (const { index: ci, year } of yearCols) {
+        const raw = cols[ci]?.trim();
+        if (!raw || raw === "") continue;
+        const val = parseFloat(raw);
+        if (isNaN(val)) continue;
+        points.push({ iso3, indicatorId: "egov_idx", year, value: val });
+      }
+    }
+    return points;
+  } catch {
+    return [];
+  }
+}
+
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') inQuotes = !inQuotes;
+    else if (ch === "," && !inQuotes) { result.push(current); current = ""; }
+    else current += ch;
+  }
+  result.push(current);
+  return result;
 }

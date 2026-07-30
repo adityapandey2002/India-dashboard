@@ -37,6 +37,7 @@ export default function RootLayout({
             </Link>
             <div className="flex gap-4 text-sm text-muted-foreground">
               <Link href="/" className="hover:text-foreground">Home</Link>
+              <Link href="/country/IND" className="hover:text-foreground">India</Link>
               <Link href="/explore" className="hover:text-foreground">Explore</Link>
               <Link href="/compare" className="hover:text-foreground">Compare</Link>
               <Link href="/report-card" className="hover:text-foreground">Report Card</Link>

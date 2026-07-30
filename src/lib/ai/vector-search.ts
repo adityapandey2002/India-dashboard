@@ -50,7 +50,6 @@ const COUNTRY_ALIASES: Record<string, string> = {
 
 function tokenize(text: string): string[] {
   let normalized = text.toLowerCase();
-  // Replace country names with ISO3 codes
   for (const [name, iso3] of Object.entries(COUNTRY_ALIASES)) {
     normalized = normalized.replace(new RegExp(`\\b${name}\\b`, "g"), iso3);
   }
@@ -94,15 +93,14 @@ function cosineSimilarity(queryVec: Map<string, number>, docVec: Map<string, num
  * Find the top-k most relevant chunks using local TF-IDF search.
  * Falls back to keyword search if no index exists.
  */
-export function vectorSearch(
+export async function vectorSearch(
   question: string,
   topK: number = 15,
-): SearchResult[] | null {
+): Promise<SearchResult[] | null> {
   const queryTokens = tokenize(question);
   if (queryTokens.length === 0) return null;
 
-  // Load all stored TF-IDF vectors from the embeddings table
-  const rows = query<{
+  const rows = await query<{
     id: string;
     chunk_text: string;
     source: string;
@@ -118,7 +116,6 @@ export function vectorSearch(
 
   if (rows.length === 0) return null;
 
-  // Build IDF from stored vectors
   const idf = new Map<string, number>();
   const docFreq = new Map<string, number>();
   const docVectors: Map<string, number>[] = [];
@@ -148,7 +145,6 @@ export function vectorSearch(
 
   const queryVec = getQueryVector(queryTokens, idf);
 
-  // Score all documents
   const scored: SearchResult[] = [];
 
   for (let i = 0; i < parsedCount; i++) {

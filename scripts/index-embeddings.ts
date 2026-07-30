@@ -33,10 +33,10 @@ async function main() {
   const t0 = Date.now();
   console.log("Building local text index...\n");
 
-  getDb();
+  await getDb();
 
   // Get all data points with indicator names
-  const points = query<DataPoint>(
+  const points = await query<DataPoint>(
     `SELECT dp.indicator_id, i.name AS indicator_name, dp.country_iso3, dp.year, dp.value, i.unit
      FROM data_points dp
      JOIN indicators i ON i.id = dp.indicator_id
@@ -61,8 +61,8 @@ async function main() {
 
   // Build TF-IDF index
   // Step 1: compute term frequency per document and document frequency
-  const docFreq = new Map<string, number>();  // term -> # documents containing it
-  const termFreqs: Map<string, number>[] = [];  // per-document term frequencies
+  const docFreq = new Map<string, number>();
+  const termFreqs: Map<string, number>[] = [];
 
   for (const chunk of chunks) {
     const tokens = tokenize(chunk.text);
@@ -91,9 +91,10 @@ async function main() {
   let indexed = 0;
 
   // Clear existing index
-  execute(`DELETE FROM embeddings`);
+  await execute(`DELETE FROM embeddings`);
 
-  const stmt = getDb().prepare(
+  const db = await getDb();
+  const stmt = db.prepare(
     `INSERT INTO embeddings (id, chunk_text, source, indicator_id, country_iso3, year, embedding)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   );
@@ -106,7 +107,6 @@ async function main() {
       const tf = termFreqs[ci];
       const vec: number[] = [];
 
-      // Compute TF-IDF scores for top terms (limit to 50 per doc for storage efficiency)
       const scored: [string, number][] = [];
       for (const [term, freq] of tf) {
         const weight = freq * (idf.get(term) || 1);
@@ -115,7 +115,6 @@ async function main() {
       scored.sort((a, b) => b[1] - a[1]);
       const topTerms = scored.slice(0, 50);
 
-      // Serialize as JSON: {term: weight, ...}
       const vecObj: Record<string, number> = {};
       for (const [term, weight] of topTerms) {
         vecObj[term] = weight;
@@ -132,7 +131,7 @@ async function main() {
   }
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-  const total = query<{ n: number }>(`SELECT COUNT(*) AS n FROM embeddings`);
+  const total = await query<{ n: number }>(`SELECT COUNT(*) AS n FROM embeddings`);
   console.log(`\nDone in ${elapsed}s`);
   console.log(`  ${indexed} chunks indexed`);
   console.log(`  Embeddings table: ${total[0]?.n ?? 0} rows`);

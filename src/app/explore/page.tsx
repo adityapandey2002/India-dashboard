@@ -2,12 +2,13 @@ import { getIndicatorCoverage, getDashboardStats } from "@/lib/db/queries";
 import { query } from "@/lib/db/client";
 import { ExploreClient } from "./explore-client";
 
-export default async function ExplorePage() {
-  const coverage = getIndicatorCoverage();
-  const stats = getDashboardStats();
-  const categories = query<{ category: string }>(
-    `SELECT DISTINCT category FROM indicators ORDER BY category`
-  );
+export default async function ExplorePage(props: { searchParams: Promise<{ category?: string }> }) {
+  const { category } = await props.searchParams;
+  const [coverage, stats, categories] = await Promise.all([
+    getIndicatorCoverage(),
+    getDashboardStats(),
+    query<{ category: string }>(`SELECT DISTINCT category FROM indicators ORDER BY category`),
+  ]);
 
   return (
     <main className="min-h-screen bg-background">
@@ -28,6 +29,7 @@ export default async function ExplorePage() {
             countriesWithData: Number(c.countriesWithData),
           }))}
           categories={categories.map((c) => c.category)}
+          defaultCategory={category}
         />
       </div>
     </main>

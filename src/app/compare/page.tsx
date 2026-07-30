@@ -1,17 +1,21 @@
+export const dynamic = "force-dynamic";
+
 import { BarChart3 } from "lucide-react";
 import { CompareTool } from "@/components/dashboard/comparison-tool";
 import { query } from "@/lib/db/client";
 
 export default async function ComparePage() {
-  const allCountries = query<{ iso3: string; name: string; region: string | null }>(
-    `SELECT iso3, name, region FROM countries ORDER BY name`,
-  );
-  const allIndicators = query<{ id: string; name: string; category: string; unit: string | null }>(
-    `SELECT id, name, category, unit FROM indicators ORDER BY category, name`,
-  );
-  const stats = query<{ totalIndicators: number; totalDataPoints: number }>(
-    `SELECT (SELECT COUNT(*) FROM indicators) AS totalIndicators, (SELECT COUNT(*) FROM data_points) AS totalDataPoints`,
-  );
+  const [allCountries, allIndicators, stats] = await Promise.all([
+    query<{ iso3: string; name: string; region: string | null }>(
+      `SELECT iso3, name, region FROM countries ORDER BY name`,
+    ),
+    query<{ id: string; name: string; category: string; unit: string | null }>(
+      `SELECT id, name, category, unit FROM indicators ORDER BY category, name`,
+    ),
+    query<{ totalIndicators: number; totalDataPoints: number }>(
+      `SELECT (SELECT COUNT(*) FROM indicators) AS totalIndicators, (SELECT COUNT(*) FROM data_points) AS totalDataPoints`,
+    ),
+  ]);
 
   const countries = JSON.parse(JSON.stringify(allCountries));
   const indicators = JSON.parse(JSON.stringify(allIndicators));

@@ -21,25 +21,35 @@ type IndicatorCoverage = {
 export function ExploreClient({
   coverage,
   categories,
+  defaultCategory,
 }: {
   coverage: IndicatorCoverage[];
   categories: string[];
+  defaultCategory?: string;
 }) {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
+  const [category, setCategory] = useState(defaultCategory && categories.includes(defaultCategory) ? defaultCategory : "all");
 
-  const filtered = coverage.filter((c) => {
-    if (category !== "all" && c.category !== category) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        c.indicatorName.toLowerCase().includes(q) ||
-        c.indicatorId.toLowerCase().includes(q) ||
-        c.source.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const filtered = coverage
+    .filter((c) => {
+      if (category !== "all" && c.category !== category) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          c.indicatorName.toLowerCase().includes(q) ||
+          c.indicatorId.toLowerCase().includes(q) ||
+          c.source.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const aHas = a.dataPoints > 0 ? 1 : 0;
+      const bHas = b.dataPoints > 0 ? 1 : 0;
+      if (aHas !== bHas) return bHas - aHas;
+      if (a.dataPoints !== b.dataPoints) return b.dataPoints - a.dataPoints;
+      return a.indicatorName.localeCompare(b.indicatorName);
+    });
 
   const hasData = (c: IndicatorCoverage) => c.dataPoints > 0;
 
@@ -67,6 +77,9 @@ export function ExploreClient({
         </Tabs>
       </div>
 
+      <p className="text-sm text-muted-foreground">
+        {coverage.filter((c) => c.dataPoints > 0).length} of {coverage.length} indicators have data
+      </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((c) => (
           <Link

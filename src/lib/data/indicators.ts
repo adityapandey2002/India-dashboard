@@ -43,12 +43,12 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "net_migration",        name: "Net migration",                category: "society",    source: "world_bank", sourceId: "SM.POP.NETM",            unit: "people",       description: "Net number of migrants",                        freq: "annual" },
   { id: "population_density",   name: "Population density",           category: "society",    source: "world_bank", sourceId: "EN.POP.DNST",            unit: "per sq km",    description: "People per square kilometer of land area",       freq: "annual" },
   { id: "rural_population_pct", name: "Rural population (% of total)", category: "society",   source: "world_bank", sourceId: "SP.RUR.TOTL.ZS",        unit: "%",            description: "Share of population living in rural areas",      freq: "annual" },
-  { id: "refugee_population",   name: "Refugee population",           category: "society",    source: "world_bank", sourceId: "SM.POP.REFG",            unit: "people",       description: "Population of refugees by country of asylum",     freq: "annual" },
+  { id: "refugee_population",   name: "Refugee population",           category: "society",    source: "unhcr",      sourceId: "refugee-population-by-country-or-territory-of-asylum", unit: "people",       description: "Population of refugees by country of asylum",     freq: "annual" },
   { id: "labor_force_participation", name: "Labor force participation rate", category: "society", source: "world_bank", sourceId: "SL.TLF.CACT.ZS",   unit: "%",            description: "Share of population ages 15+ in labor force",     freq: "annual" },
 
   // Governance
   { id: "corruption_idx",       name: "Corruption Perceptions Index", category: "governance", source: "ti",         sourceId: "CPI",                   unit: "0-100",        description: "Perceived public-sector corruption (0=clean)",   freq: "annual" },
-  { id: "democracy_idx",        name: "Democracy Index",              category: "governance", source: "ei",         sourceId: "DEMOCRACY",             unit: "0-10",         description: "Electoral process, pluralism, participation",    freq: "annual" },
+  { id: "democracy_idx",        name: "Democracy Index (V-Dem)",      category: "governance", source: "vdem",       sourceId: "VDEM_ELECTORAL",        unit: "0-10",         description: "V-Dem electoral democracy index (0-10)",         freq: "annual" },
   { id: "rule_of_law",          name: "Rule of Law Index",            category: "governance", source: "wjp",        sourceId: "ROL",                   unit: "0-1",          description: "WJP rule of law factor score",                   freq: "biennial" },
   { id: "press_freedom",        name: "Press Freedom Index",          category: "governance", source: "rsf",        sourceId: "PFI",                   unit: "rank",         description: "RSF press freedom ranking (lower=better)",       freq: "annual" },
   { id: "gov_effectiveness",    name: "Government Effectiveness",     category: "governance", source: "wgi", sourceId: "GE.EST",                 unit: "-2.5-2.5",     description: "Quality of public services & policy",             freq: "annual" },
@@ -151,7 +151,7 @@ export function getAvailableIndicators(): Indicator[] {
     }));
 }
 
-const READY_SOURCES = new Set(["world_bank", "undp", "who", "owid", "wgi", "ti", "un"]);
+const READY_SOURCES = new Set(["world_bank", "undp", "who", "owid", "wgi", "ti", "un", "wef", "ei", "ihme", "oecd", "rsf", "heritage", "iep", "gtd", "ibp", "inform", "numbeo", "vdem", "sspi", "sdg", "oxford", "turtle", "startupblink", "ookla", "qs", "yale", "germanwatch", "iqair", "od", "imd", "itu", "wipo", "wjp", "unhcr"]);
 
 function isSourceReady(source: string): boolean {
   return READY_SOURCES.has(source);

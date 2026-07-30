@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
@@ -38,10 +39,10 @@ export function Leaderboard({ rows, unit }: Props) {
             <TableRow key={row.iso3} className={row.isIndia ? "bg-amber-50 dark:bg-amber-950/20" : ""}>
               <TableCell className="font-mono text-xs text-muted-foreground">{row.rank}</TableCell>
               <TableCell className="font-medium">
-                <span className="flex items-center gap-2">
+                <Link href={`/country/${row.iso3}`} className="flex items-center gap-2 hover:text-amber-600 transition-colors">
                   {row.name}
                   {row.isIndia && <Badge variant="default" className="bg-amber-500 hover:bg-amber-500">You</Badge>}
-                </span>
+                </Link>
               </TableCell>
               <TableCell className="text-right font-mono tabular-nums">
                 {fmtValue(row.value, unit)}
