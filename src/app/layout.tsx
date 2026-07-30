@@ -17,6 +17,7 @@ export const metadata: Metadata = {
   title: "India in the World — Global Progress Dashboard",
   description:
     "Track India's rankings across 80+ global indicators: economy, health, education, environment, governance, technology, and more. Sourced from World Bank, WHO, UNDP, ITU, and other trusted public datasets.",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({
