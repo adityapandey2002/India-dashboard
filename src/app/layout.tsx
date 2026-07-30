@@ -40,6 +40,7 @@ export default function RootLayout({
               <Link href="/explore" className="hover:text-foreground">Explore</Link>
               <Link href="/compare" className="hover:text-foreground">Compare</Link>
               <Link href="/report-card" className="hover:text-foreground">Report Card</Link>
+              <Link href="/chat" className="hover:text-foreground">Ask AI</Link>
             </div>
           </div>
         </nav>

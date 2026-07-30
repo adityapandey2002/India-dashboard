@@ -24,6 +24,8 @@ import { downloadUndpCsvAsync, parseUndpCsv, getUndpVariableMap } from "../src/l
 import { fetchWhoIndicatorData } from "../src/lib/data/sources/who";
 import { fetchOwidCo2Data } from "../src/lib/data/sources/owid";
 import { fetchWgiData } from "../src/lib/data/sources/wgi";
+import { fetchTiCpi } from "../src/lib/data/sources/ti";
+import { fetchUnEGov } from "../src/lib/data/sources/un-egov";
 
 const FOCUS_COUNTRIES = [
   "IND", "USA", "CHN", "JPN", "DEU", "GBR", "FRA", "BRA", "RUS", "CAN",
@@ -36,7 +38,8 @@ const SOURCES = [
   { id: "undp",       name: "UNDP Human Development Reports", url: "https://hdr.undp.org/", type: "api" },
   { id: "who",        name: "World Health Organization GHO", url: "https://www.who.int/data/gho", type: "api" },
   { id: "wef",        name: "World Economic Forum", url: "https://www.weforum.org/", type: "pdf" },
-  { id: "ti",         name: "Transparency International CPI", url: "https://www.transparency.org/", type: "pdf" },
+  { id: "ti",         name: "Transparency International CPI", url: "https://www.transparency.org/", type: "api" },
+  { id: "un",         name: "UN E-Government Survey", url: "https://publicadministration.un.org/egovkb/", type: "api" },
   { id: "wjp",        name: "World Justice Project", url: "https://worldjusticeproject.org/", type: "pdf" },
   { id: "yale",       name: "Yale Environmental Performance Index", url: "https://epi.yale.edu/", type: "pdf" },
   { id: "germanwatch",name: "Germanwatch CCPI", url: "https://www.germanwatch.org/", type: "pdf" },
@@ -296,6 +299,72 @@ async function main() {
   } catch (err) {
     failures++;
     console.log(`  ✗ WGI FAILED: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // ── TI Corruption Perceptions Index ─────────────────────────
+  console.log(`\n📥 Ingesting TI Corruption Perceptions Index...`);
+  try {
+    const tiIndicators = INDICATORS.filter((i) => i.source === "ti");
+    if (tiIndicators.length > 0) {
+      const allFresh = tiIndicators.every((i) => isFresh(i.id));
+      if (!allFresh) {
+        const tiPts = (await fetchTiCpi()).filter((p) => knownCountries.has(p.iso3));
+        const now = new Date().toISOString();
+        let inserted = 0;
+        for (const p of tiPts) {
+          execute(
+            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
+               value=excluded.value, fetched_at=excluded.fetched_at`,
+            [p.iso3, p.indicatorId, p.year, p.value, now],
+          );
+          inserted++;
+        }
+        totalPoints += inserted;
+        successes++;
+        console.log(`  ✓ TI CPI ${String(inserted).padStart(4)} pts`);
+      } else {
+        skipped++;
+        console.log(`  ⏭  TI CPI (fresh, skipped)`);
+      }
+    }
+  } catch (err) {
+    failures++;
+    console.log(`  ✗ TI CPI FAILED: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // ── UN E-Government ────────────────────────────────────────
+  console.log(`\n📥 Ingesting UN E-Government data...`);
+  try {
+    const unIndicators = INDICATORS.filter((i) => i.source === "un");
+    if (unIndicators.length > 0) {
+      const allFresh = unIndicators.every((i) => isFresh(i.id));
+      if (!allFresh) {
+        const unPts = (await fetchUnEGov()).filter((p) => knownCountries.has(p.iso3));
+        const now = new Date().toISOString();
+        let inserted = 0;
+        for (const p of unPts) {
+          execute(
+            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
+               value=excluded.value, fetched_at=excluded.fetched_at`,
+            [p.iso3, p.indicatorId, p.year, p.value, now],
+          );
+          inserted++;
+        }
+        totalPoints += inserted;
+        successes++;
+        console.log(`  ✓ UN E-Gov ${String(inserted).padStart(4)} pts`);
+      } else {
+        skipped++;
+        console.log(`  ⏭  UN E-Gov (fresh, skipped)`);
+      }
+    }
+  } catch (err) {
+    failures++;
+    console.log(`  ✗ UN E-Gov FAILED: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);

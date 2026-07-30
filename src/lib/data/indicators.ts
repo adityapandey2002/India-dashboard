@@ -151,7 +151,7 @@ export function getAvailableIndicators(): Indicator[] {
     }));
 }
 
-const READY_SOURCES = new Set(["world_bank", "undp", "who", "owid", "wgi"]);
+const READY_SOURCES = new Set(["world_bank", "undp", "who", "owid", "wgi", "ti", "un"]);
 
 function isSourceReady(source: string): boolean {
   return READY_SOURCES.has(source);
