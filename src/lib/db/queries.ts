@@ -79,6 +79,47 @@ export async function getRankInYear(indicatorId: string, iso3: string, year: num
   return { rank: rows[0].rank, total: rows[0].total };
 }
 
+/**
+ * Batch: for each country+indicator, the rank of that country's OWN latest value
+ * among all countries in the same indicator/year. One round-trip instead of one
+ * per indicator. Ranks are compared highest-value-wins (rank 1 = best).
+ */
+export async function getLatestRanks(
+  indicatorIds: string[],
+  iso3s: string[],
+): Promise<Array<{ indicatorId: string; countryIso3: string; year: number; rank: number; total: number }>> {
+  if (indicatorIds.length === 0 || iso3s.length === 0) return [];
+  const isoPlaceholders = iso3s.map(() => "?").join(", ");
+  const indPlaceholders = indicatorIds.map(() => "?").join(", ");
+  const rows = await query<{ indicator_id: string; country_iso3: string; year: number; rank: number | string; total: number | string }>(
+    `WITH latest AS (
+       SELECT dp.indicator_id, dp.country_iso3, dp.value, dp.year,
+              ROW_NUMBER() OVER (PARTITION BY dp.indicator_id, dp.country_iso3 ORDER BY dp.year DESC) AS rn
+       FROM data_points dp
+       WHERE dp.value IS NOT NULL
+     ),
+     ranked AS (
+       SELECT l.indicator_id, l.country_iso3, l.year,
+              RANK() OVER (PARTITION BY l.indicator_id, l.year ORDER BY l.value DESC) AS rank,
+              COUNT(*) OVER (PARTITION BY l.indicator_id, l.year) AS total
+       FROM latest l
+       WHERE l.rn = 1
+     )
+     SELECT indicator_id, country_iso3, year, rank, total
+     FROM ranked
+     WHERE country_iso3 IN (${isoPlaceholders})
+       AND indicator_id IN (${indPlaceholders})`,
+    [...iso3s, ...indicatorIds],
+  );
+  return rows.map((r) => ({
+    indicatorId: r.indicator_id,
+    countryIso3: r.country_iso3,
+    year: r.year,
+    rank: Number(r.rank),
+    total: Number(r.total),
+  }));
+}
+
 export async function getLeaderboard(indicatorId: string, year: number, limit = 30): Promise<Array<{ iso3: string; value: number | null }>> {
   const rows = await query<{ country_iso3: string; value: number | null }>(
     `SELECT country_iso3, value

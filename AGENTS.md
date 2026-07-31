@@ -41,11 +41,14 @@ To seed PG from scratch:
 ## Completed
 - PostgreSQL migration: client.ts auto-detects PG/SQLite, all DB calls async, `pg` package installed, `bulkInsert` helper
 - Home page: KPI cards with trend arrows, 4 multi-country trend charts, world map with category-grouped indicator selector, dynamic years, scatter correlation chart (`/api/scatter` + `ScatterCard`: pick any two indicators, India highlighted, Pearson r + India percentile chips)
+- Responsive nav: `src/components/site-nav.tsx` (`SiteNav` client component, desktop `md:flex` links + mobile Menu/X toggle dropdown) wired into `src/app/layout.tsx`
+- Test setup: Vitest 4 + Testing Library (jsdom), `npm test`, config `vitest.config.ts` (`@`→`src` alias, setup `src/test/setup.ts`), 16 passing tests across `/api/scatter` route (mocked DB) + `scatter-chart` component (mocked fetch + recharts ResponsiveContainer)
 - Explore page: category filter + search with data coverage stats (sorted: data-rich first), `?category=` query param
 - Compare page: multi-country line/bar/radar charts, delta highlights, data table, AI insight panel
+- Country page: overall global score + grade, category radar vs India (`CountryRadar`), top/bottom performer cards, interactive trend vs India (`CountryTrendCard` via `/api/indicators/series`), category score chips. Uses `getLatestRanks` + `getCountryHistory` (6 round-trips instead of ~220)
 - World map: interactive D3 Mercator choropleth with year selector + historical event annotations
 - AI Chat: RAG chatbot with TF-IDF vector search + Groq LLM with citations
-- Report Card: per-category scoring, ranks, trends, Print/Save PDF + CSV Export
+- Report Card: per-category scoring, ranks, trends, Print/Save PDF + CSV Export. Now: overall A–F grade + score (0–100 percentile-based, `src/lib/report-card.ts` helpers), per-category grade badges + score bars, India vs China radar (`ReportCardRadar`), strongest/weakest callouts, top-5 indicators per category by score. Batching via `getLatestRanks(indicatorIds, iso3s)` in `queries.ts` (one round-trip computes each country's own-latest-year rank per indicator instead of ~110 per-indicator queries)
 - ~110 working indicators, ~116k data points, 34 ready sources
 - `education_idx` computed from UNDP eys+mys in `src/lib/data/sources/undp.ts`
 - `egov_idx` from World Bank Data360 EGDI CSV (`src/lib/data/sources/un-egov.ts`)

@@ -25,7 +25,7 @@ type Props = {
   initialY?: string;
 };
 
-function fmtAxis(v: number): string {
+export function fmtAxis(v: number): string {
   if (Math.abs(v) >= 1e12) return `${(v / 1e12).toFixed(1)}T`;
   if (Math.abs(v) >= 1e9)  return `${(v / 1e9).toFixed(1)}B`;
   if (Math.abs(v) >= 1e6)  return `${(v / 1e6).toFixed(1)}M`;
@@ -34,7 +34,7 @@ function fmtAxis(v: number): string {
   return Number(v.toFixed(2)).toLocaleString();
 }
 
-function fmtVal(v: number): string {
+export function fmtVal(v: number): string {
   if (Math.abs(v) >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
   if (Math.abs(v) >= 1e9)  return `$${(v / 1e9).toFixed(1)}B`;
   if (Math.abs(v) >= 1e6)  return `$${(v / 1e6).toFixed(1)}M`;
@@ -42,7 +42,7 @@ function fmtVal(v: number): string {
   return Number(v.toFixed(2)).toLocaleString();
 }
 
-function percentile(points: ScatterPoint[], key: "x" | "y", value: number): number | null {
+export function percentile(points: ScatterPoint[], key: "x" | "y", value: number): number | null {
   if (points.length < 2) return null;
   const sorted = [...points].sort((a, b) => a[key] - b[key]);
   const idx = sorted.findIndex((p) => p[key] >= value);
@@ -57,7 +57,7 @@ type ScatterTooltipProps = {
   yLabel: string;
 };
 
-function ScatterTooltip({ active, payload, xLabel, yLabel }: ScatterTooltipProps) {
+export function ScatterTooltip({ active, payload, xLabel, yLabel }: ScatterTooltipProps) {
   if (!active || !payload?.length) return null;
   const p = payload[0]?.payload as ScatterPoint | undefined;
   if (!p) return null;
