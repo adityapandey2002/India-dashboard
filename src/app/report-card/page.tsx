@@ -89,7 +89,7 @@ export default async function ReportCardPage() {
   const reportYear = Math.max(...Object.values(reportData).flatMap((e) => e.map((x) => x.year ?? 0).filter(Boolean))) || new Date().getFullYear();
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="mx-auto max-w-4xl space-y-8">
         {/* Header */}
         <div className="text-center space-y-4 border-b pb-8">

@@ -16,6 +16,8 @@ export type IndicesDataPoint = {
   value: number;
 };
 
+type Row = Array<string | number | null | undefined>;
+
 const KNOWN_ISO = new Set([
   "ABW","AFG","AGO","ALB","AND","ARE","ARG","ARM","ATG","AUS","AUT","AZE",
   "BDI","BEL","BEN","BFA","BGD","BGR","BHR","BHS","BIH","BLR","BLZ","BOL",
@@ -210,14 +212,14 @@ export async function fetchGiiIndex(): Promise<IndicesDataPoint[]> {
     const wb = await fetchXlsx(url);
     if (!wb) continue;
     const sheetName = wb.SheetNames.find((s) => s === "Data") ?? wb.SheetNames[0];
-    const rows = XLSX.utils.sheet_to_json<any>(wb.Sheets[sheetName], { header: 1 });
-    const header = rows[0] as any[];
+    const rows = XLSX.utils.sheet_to_json<Row>(wb.Sheets[sheetName], { header: 1 });
+    const header = rows[0] as Row;
     const isoIdx = header.indexOf("ISO3");
     const nameIdx = header.indexOf("NAME");
     const scoreIdx = header.indexOf("SCORE");
     if (isoIdx < 0 || nameIdx < 0 || scoreIdx < 0) continue;
     for (let i = 1; i < rows.length; i++) {
-      const row = rows[i] as any[];
+      const row = rows[i] as Row;
       if (String(row[nameIdx] ?? "").trim() !== "Global Innovation Index") continue;
       const iso3 = String(row[isoIdx] ?? "").trim().toUpperCase();
       if (!iso3 || !KNOWN_ISO.has(iso3)) continue;
@@ -264,15 +266,15 @@ export async function fetchEpi(): Promise<IndicesDataPoint[]> {
   const wb = await fetchXlsx(EPI_URL);
   if (!wb) return [];
   const sheetName = wb.SheetNames.find((s) => s === "data") ?? wb.SheetNames[0];
-  const rows = XLSX.utils.sheet_to_json<any>(wb.Sheets[sheetName], { header: 1 });
-  const header = rows[0] as any[];
+  const rows = XLSX.utils.sheet_to_json<Row>(wb.Sheets[sheetName], { header: 1 });
+  const header = rows[0] as Row;
   const isoIdx = header.indexOf("iso");
   const scoreIdx = header.indexOf("EPI.new");
   if (isoIdx < 0 || scoreIdx < 0) return [];
 
   const points: IndicesDataPoint[] = [];
   for (let i = 1; i < rows.length; i++) {
-    const row = rows[i] as any[];
+    const row = rows[i] as Row;
     const iso3 = String(row[isoIdx] ?? "").trim().toUpperCase();
     if (!iso3 || !KNOWN_ISO.has(iso3)) continue;
     const raw = row[scoreIdx];
@@ -291,7 +293,7 @@ export async function fetchNri(): Promise<IndicesDataPoint[]> {
   const wb = await fetchXlsx(NRI_URL);
   if (!wb) return [];
   const sheetName = wb.SheetNames.find((s) => s.includes("NRI")) ?? wb.SheetNames[0];
-  const rows = XLSX.utils.sheet_to_json<any>(wb.Sheets[sheetName], { header: 1 });
+  const rows = XLSX.utils.sheet_to_json<Row>(wb.Sheets[sheetName], { header: 1 });
 
   const points: IndicesDataPoint[] = [];
   for (const row of rows) {

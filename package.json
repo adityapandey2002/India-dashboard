@@ -9,6 +9,7 @@
     "lint": "eslint",
     "ingest": "set NODE_OPTIONS=--no-warnings&& tsx scripts/ingest.ts",
     "ingest:wb": "set NODE_OPTIONS=--no-warnings&& tsx scripts/ingest.ts world_bank",
+    "ingest:new": "set NODE_OPTIONS=--no-warnings&& tsx scripts/ingest-new.ts",
     "index-embeddings": "set NODE_OPTIONS=--no-warnings&& tsx scripts/index-embeddings.ts",
     "migrate-pg": "set NODE_OPTIONS=--no-warnings&& tsx scripts/migrate-to-pg.ts",
     "status": "set NODE_OPTIONS=--no-warnings&& tsx scripts/status.ts"

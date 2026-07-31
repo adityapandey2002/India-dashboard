@@ -194,13 +194,25 @@ function parseCsvLine(line: string): string[] {
 
 async function fetchDataset(cfg: DatasetConfig): Promise<OwidDataPoint[]> {
   const url = `${OWID_RAW}/${encodeURI(cfg.path)}/${encodeURI(cfg.filename)}`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": "IndiaDashboard/0.1" },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) return [];
 
-  const text = await res.text();
+  let text: string | null = null;
+  for (let attempt = 0; attempt < 3 && text === null; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "IndiaDashboard/0.1" },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (res.ok) text = await res.text();
+    } catch {
+      // transient network error — retry
+    }
+    if (text === null && attempt < 2) {
+      await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+    }
+  }
+
+  if (!text) return [];
+
   const lines = text.trim().split("\n");
   if (lines.length < 2) return [];
 
@@ -236,14 +248,13 @@ async function fetchDataset(cfg: DatasetConfig): Promise<OwidDataPoint[]> {
 }
 
 export async function fetchOwidIndicators(): Promise<OwidDataPoint[]> {
-  const results = await Promise.allSettled(
-    DATASETS.map((cfg) => fetchDataset(cfg)),
-  );
-
+  // Fetch sequentially — parallel bursts to raw.githubusercontent.com get throttled
   const all: OwidDataPoint[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled") {
-      all.push(...r.value);
+  for (const cfg of DATASETS) {
+    try {
+      all.push(...(await fetchDataset(cfg)));
+    } catch {
+      // dataset skipped
     }
   }
   return all;

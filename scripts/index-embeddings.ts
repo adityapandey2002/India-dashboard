@@ -6,7 +6,7 @@
  */
 
 import "dotenv/config";
-import { getDb, query, execute } from "../src/lib/db/client";
+import { getDb, query, execute, bulkInsert } from "../src/lib/db/client";
 
 type DataPoint = {
   indicator_id: string;
@@ -93,19 +93,13 @@ async function main() {
   // Clear existing index
   await execute(`DELETE FROM embeddings`);
 
-  const db = await getDb();
-  const stmt = db.prepare(
-    `INSERT INTO embeddings (id, chunk_text, source, indicator_id, country_iso3, year, embedding)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  );
-
+  const rows: Array<[string, string, string, string, string, number, string]> = [];
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const batch = chunks.slice(i, i + BATCH_SIZE);
 
     for (let j = 0; j < batch.length; j++) {
       const ci = i + j;
       const tf = termFreqs[ci];
-      const vec: number[] = [];
 
       const scored: [string, number][] = [];
       for (const [term, freq] of tf) {
@@ -120,8 +114,15 @@ async function main() {
         vecObj[term] = weight;
       }
 
-      const jsonStr = JSON.stringify(vecObj);
-      stmt.run(batch[j].id, batch[j].text, batch[j].source, batch[j].indicator_id, batch[j].country_iso3, batch[j].year, jsonStr);
+      rows.push([
+        batch[j].id,
+        batch[j].text,
+        batch[j].source,
+        batch[j].indicator_id,
+        batch[j].country_iso3,
+        batch[j].year,
+        JSON.stringify(vecObj),
+      ]);
       indexed++;
     }
 
@@ -129,6 +130,14 @@ async function main() {
       console.log(`  ${Math.min(i + BATCH_SIZE, chunks.length)}/${chunks.length} indexed`);
     }
   }
+
+  // Batch upsert — fast on SQLite and remote Postgres
+  await bulkInsert(
+    "embeddings",
+    ["id", "chunk_text", "source", "indicator_id", "country_iso3", "year", "embedding"],
+    rows,
+    "ON CONFLICT(id) DO UPDATE SET chunk_text=excluded.chunk_text, source=excluded.source, indicator_id=excluded.indicator_id, country_iso3=excluded.country_iso3, year=excluded.year, embedding=excluded.embedding",
+  );
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
   const total = await query<{ n: number }>(`SELECT COUNT(*) AS n FROM embeddings`);

@@ -4,6 +4,7 @@ import { Globe2, TrendingUp, Database, Calendar, BookOpen, Heart, BarChart3, Lea
 import { StatCard } from "@/components/dashboard/stat-card";
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { WorldMapCard } from "@/components/dashboard/world-map-card";
+import { ScatterCard } from "@/components/dashboard/scatter-chart";
 import { Leaderboard, type LeaderRow } from "@/components/dashboard/leaderboard";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -172,6 +173,15 @@ export default async function HomePage() {
         {/* World map */}
         <section>
           <WorldMapCard indicators={allIndicators} />
+        </section>
+
+        {/* Scatter correlation */}
+        <section>
+          <ScatterCard
+            indicators={allIndicators.filter((i) => hasData(i.id)).map((i) => ({ id: i.id, name: i.name, category: i.category }))}
+            initialX="gni_per_capita"
+            initialY="innovation_idx"
+          />
         </section>
 
         {/* GDP trend */}

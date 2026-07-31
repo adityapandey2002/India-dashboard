@@ -76,6 +76,35 @@ export async function execute(
   return { changes: result.changes, lastInsertRowid: result.lastInsertRowid };
 }
 
+/**
+ * Insert many rows in one statement (chunked). Greatly reduces round-trips
+ * when writing thousands of points to a remote Postgres DB.
+ *
+ * `columns` must match `rows` positionally. `onConflict` is appended verbatim,
+ * e.g. "ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET value=excluded.value".
+ */
+export async function bulkInsert(
+  table: string,
+  columns: string[],
+  rows: unknown[][],
+  onConflict?: string,
+  chunkSize = 500,
+): Promise<number> {
+  const colList = columns.join(", ");
+  let inserted = 0;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const placeholders = chunk
+      .map(() => `(${columns.map(() => "?").join(", ")})`)
+      .join(", ");
+    let sql = `INSERT INTO ${table} (${colList}) VALUES ${placeholders}`;
+    if (onConflict) sql += ` ${onConflict}`;
+    const r = await execute(sql, chunk.flat());
+    inserted += r.changes;
+  }
+  return inserted;
+}
+
 function runSqliteMigrations(db: any): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS countries (

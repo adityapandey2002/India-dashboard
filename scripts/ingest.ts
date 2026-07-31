@@ -17,7 +17,7 @@
 
 import "dotenv/config";
 import path from "node:path";
-import { execute, query, getDb } from "../src/lib/db/client";
+import { bulkInsert, execute, query, getDb } from "../src/lib/db/client";
 import { INDICATORS } from "../src/lib/data/indicators";
 import { fetchAllCountries, fetchIndicator } from "../src/lib/data/sources/world-bank";
 import { downloadUndpCsvAsync, parseUndpCsv, getUndpVariableMap } from "../src/lib/data/sources/undp";
@@ -136,6 +136,17 @@ async function isFresh(indicatorId: string): Promise<boolean> {
   return Date.now() - last < STALE_HOURS * 3600 * 1000;
 }
 
+/** Batch-insert data points (single statement per chunk — fast on remote PG). */
+async function insertPoints(rows: Array<[string, string, number, number]>, now: string): Promise<number> {
+  if (rows.length === 0) return 0;
+  return bulkInsert(
+    "data_points",
+    ["country_iso3", "indicator_id", "year", "value", "fetched_at"],
+    rows.map((r) => [...r, now]),
+    "ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET value=excluded.value, fetched_at=excluded.fetched_at",
+  );
+}
+
 async function runOne(ind: typeof INDICATORS[number]) {
   if (await isFresh(ind.id)) {
     return { ok: true as const, count: 0, skipped: true };
@@ -213,20 +224,14 @@ async function main() {
     await downloadUndpCsvAsync();
     const undpPoints = parseUndpCsv(path.join(process.cwd(), "data", "raw", "undp_hdr.csv"));
     const varMap = getUndpVariableMap();
-    let undpInserted = 0;
     const now = new Date().toISOString();
+    const rows: Array<[string, string, number, number]> = [];
     for (const pt of undpPoints) {
       const mapped = varMap[pt.variable];
-      if (!mapped) continue;
-      await execute(
-        `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-           value=excluded.value, fetched_at=excluded.fetched_at`,
-        [pt.iso3, mapped.id, pt.year, pt.value, now],
-      );
-      undpInserted++;
+      if (!mapped || pt.value == null) continue;
+      rows.push([pt.iso3, mapped.id, pt.year, pt.value]);
     }
+    const undpInserted = await insertPoints(rows, now);
     totalPoints += undpInserted;
     successes++;
     console.log(`  ✓ UNDP HDR ${String(undpInserted).padStart(4)} pts`);
@@ -247,18 +252,13 @@ async function main() {
       }
       const pts = (await fetchWhoIndicatorData(ind.id)).filter((p) => knownCountries.has(p.iso3));
       const now = new Date().toISOString();
-      for (const p of pts) {
-        await execute(
-          `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-           VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-             value=excluded.value, fetched_at=excluded.fetched_at`,
-          [p.iso3, ind.id, p.year, p.value, now],
-        );
-      }
-      totalPoints += pts.length;
+      const inserted = await insertPoints(
+        pts.map((p) => [p.iso3, ind.id, p.year, p.value] as [string, string, number, number]),
+        now,
+      );
+      totalPoints += inserted;
       successes++;
-      console.log(`  ✓ ${ind.id.padEnd(22)} ${String(pts.length).padStart(4)} pts`);
+      console.log(`  ✓ ${ind.id.padEnd(22)} ${String(inserted).padStart(4)} pts`);
     } catch (err) {
       failures++;
       console.log(`  ✗ ${ind.id.padEnd(22)} FAILED: ${err instanceof Error ? err.message : String(err)}`);
@@ -279,18 +279,13 @@ async function main() {
       }
       const pts = (await fetchOwidCo2Data(ind.id)).filter((p) => knownCountries.has(p.iso3));
       const now = new Date().toISOString();
-      for (const p of pts) {
-        await execute(
-          `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-           VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-             value=excluded.value, fetched_at=excluded.fetched_at`,
-          [p.iso3, ind.id, p.year, p.value, now],
-        );
-      }
-      totalPoints += pts.length;
+      const inserted = await insertPoints(
+        pts.map((p) => [p.iso3, ind.id, p.year, p.value] as [string, string, number, number]),
+        now,
+      );
+      totalPoints += inserted;
       successes++;
-      console.log(`  ✓ ${ind.id.padEnd(22)} ${String(pts.length).padStart(4)} pts`);
+      console.log(`  ✓ ${ind.id.padEnd(22)} ${String(inserted).padStart(4)} pts`);
     } catch (err) {
       failures++;
       console.log(`  ✗ ${ind.id.padEnd(22)} FAILED: ${err instanceof Error ? err.message : String(err)}`);
@@ -306,18 +301,12 @@ async function main() {
       if (!allFresh) {
         const wgiPts = (await fetchWgiData()).filter((p) => knownCountries.has(p.iso3));
         const now = new Date().toISOString();
-        let inserted = 0;
+        const rows: Array<[string, string, number, number]> = [];
         for (const p of wgiPts) {
           if (!wgiIndIds.includes(p.indicatorId)) continue;
-          await execute(
-            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-               value=excluded.value, fetched_at=excluded.fetched_at`,
-            [p.iso3, p.indicatorId, p.year, p.value, now],
-          );
-          inserted++;
+          rows.push([p.iso3, p.indicatorId, p.year, p.value]);
         }
+        const inserted = await insertPoints(rows, now);
         totalPoints += inserted;
         successes++;
         console.log(`  ✓ WGI governance ${String(inserted).padStart(4)} pts`);
@@ -342,17 +331,10 @@ async function main() {
       if (!allFresh) {
         const owidPts = (await fetchOwidIndicators()).filter((p) => knownCountries.has(p.iso3));
         const now = new Date().toISOString();
-        let inserted = 0;
-        for (const p of owidPts) {
-          await execute(
-            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-               value=excluded.value, fetched_at=excluded.fetched_at`,
-            [p.iso3, p.indicatorId, p.year, p.value, now],
-          );
-          inserted++;
-        }
+        const inserted = await insertPoints(
+          owidPts.map((p) => [p.iso3, p.indicatorId, p.year, p.value] as [string, string, number, number]),
+          now,
+        );
         totalPoints += inserted;
         successes++;
         console.log(`  ✓ OWID generic ${String(inserted).padStart(4)} pts`);
@@ -375,17 +357,10 @@ async function main() {
       if (!allFresh) {
         const numbeoPts = (await fetchNumbeoIndices()).filter((p) => knownCountries.has(p.iso3));
         const now = new Date().toISOString();
-        let inserted = 0;
-        for (const p of numbeoPts) {
-          await execute(
-            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-               value=excluded.value, fetched_at=excluded.fetched_at`,
-            [p.iso3, p.indicatorId, p.year, p.value, now],
-          );
-          inserted++;
-        }
+        const inserted = await insertPoints(
+          numbeoPts.map((p) => [p.iso3, p.indicatorId, p.year, p.value] as [string, string, number, number]),
+          now,
+        );
         totalPoints += inserted;
         successes++;
         console.log(`  ✓ Numbeo ${String(inserted).padStart(4)} pts`);
@@ -408,17 +383,10 @@ async function main() {
       if (!allFresh) {
         const tiPts = (await fetchTiCpi()).filter((p) => knownCountries.has(p.iso3));
         const now = new Date().toISOString();
-        let inserted = 0;
-        for (const p of tiPts) {
-          await execute(
-            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-               value=excluded.value, fetched_at=excluded.fetched_at`,
-            [p.iso3, p.indicatorId, p.year, p.value, now],
-          );
-          inserted++;
-        }
+        const inserted = await insertPoints(
+          tiPts.map((p) => [p.iso3, p.indicatorId, p.year, p.value] as [string, string, number, number]),
+          now,
+        );
         totalPoints += inserted;
         successes++;
         console.log(`  ✓ TI CPI ${String(inserted).padStart(4)} pts`);
@@ -441,17 +409,10 @@ async function main() {
       if (!allFresh) {
         const unPts = (await fetchUnEGov()).filter((p) => knownCountries.has(p.iso3));
         const now = new Date().toISOString();
-        let inserted = 0;
-        for (const p of unPts) {
-          await execute(
-            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-               value=excluded.value, fetched_at=excluded.fetched_at`,
-            [p.iso3, p.indicatorId, p.year, p.value, now],
-          );
-          inserted++;
-        }
+        const inserted = await insertPoints(
+          unPts.map((p) => [p.iso3, p.indicatorId, p.year, p.value] as [string, string, number, number]),
+          now,
+        );
         totalPoints += inserted;
         successes++;
         console.log(`  ✓ UN E-Gov ${String(inserted).padStart(4)} pts`);
@@ -475,17 +436,10 @@ async function main() {
       if (!allFresh) {
         const extraPts = (await fetchExtraIndicators()).filter((p) => knownCountries.has(p.iso3));
         const now = new Date().toISOString();
-        let inserted = 0;
-        for (const p of extraPts) {
-          await execute(
-            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-               value=excluded.value, fetched_at=excluded.fetched_at`,
-            [p.iso3, p.indicatorId, p.year, p.value, now],
-          );
-          inserted++;
-        }
+        const inserted = await insertPoints(
+          extraPts.map((p) => [p.iso3, p.indicatorId, p.year, p.value] as [string, string, number, number]),
+          now,
+        );
         totalPoints += inserted;
         successes++;
         console.log(`  ✓ Extra OWID grapher ${String(inserted).padStart(4)} pts`);
@@ -508,17 +462,10 @@ async function main() {
       if (!allFresh) {
         const sdgPts = (await fetchSdgIndex()).filter((p) => knownCountries.has(p.iso3));
         const now = new Date().toISOString();
-        let inserted = 0;
-        for (const p of sdgPts) {
-          await execute(
-            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-               value=excluded.value, fetched_at=excluded.fetched_at`,
-            [p.iso3, p.indicatorId, p.year, p.value, now],
-          );
-          inserted++;
-        }
+        const inserted = await insertPoints(
+          sdgPts.map((p) => [p.iso3, p.indicatorId, p.year, p.value] as [string, string, number, number]),
+          now,
+        );
         totalPoints += inserted;
         successes++;
         console.log(`  ✓ SDG Index ${String(inserted).padStart(4)} pts`);
@@ -563,19 +510,13 @@ async function main() {
           continue;
         }
         const pts = await job.fn();
-        let inserted = 0;
+        const rows: Array<[string, string, number, number]> = [];
         for (const p of pts) {
           const iso3 = p.iso3 ?? (p.name ? resolveIso3(p.name, nameMap) : null);
           if (!iso3 || !knownCountries.has(iso3)) continue;
-          await execute(
-            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-               value=excluded.value, fetched_at=excluded.fetched_at`,
-            [iso3, p.indicatorId, p.year, p.value, now],
-          );
-          inserted++;
+          rows.push([iso3, p.indicatorId, p.year, p.value]);
         }
+        const inserted = await insertPoints(rows, now);
         totalPoints += inserted;
         successes++;
         console.log(`  ✓ ${job.id.padEnd(22)} ${String(inserted).padStart(4)} pts`);
