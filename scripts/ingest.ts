@@ -30,6 +30,11 @@ import { fetchOwidIndicators } from "../src/lib/data/sources/owid-generic";
 import { fetchNumbeoIndices } from "../src/lib/data/sources/numbeo";
 import { fetchExtraIndicators } from "../src/lib/data/sources/extra";
 import { fetchSdgIndex } from "../src/lib/data/sources/sdg";
+import {
+  fetchInformRisk, fetchGiiIndex, fetchGpi, fetchEpi,
+  fetchNri, fetchAiReadiness, fetchSpi, resolveIso3,
+  type IndicesDataPoint,
+} from "../src/lib/data/sources/indices";
 
 const FOCUS_COUNTRIES = [
   "IND", "USA", "CHN", "JPN", "DEU", "GBR", "FRA", "BRA", "RUS", "CAN",
@@ -463,7 +468,7 @@ async function main() {
   // ── Extra Indicators (OWID grapher: democracy_idx, rule_of_law, refugee, etc.) ──
   console.log(`\n📥 Ingesting extra OWID grapher indicators...`);
   try {
-    const extraIndicatorIds = ["democracy_idx", "rule_of_law", "refugee_population", "multidim_poverty"];
+    const extraIndicatorIds = ["democracy_idx", "rule_of_law", "refugee_population", "multidim_poverty", "patents_per_million", "air_quality"];
     const extraTargets = INDICATORS.filter((i) => extraIndicatorIds.includes(i.id));
     if (extraTargets.length > 0) {
       const allFresh = await Promise.all(extraTargets.map((i) => isFresh(i.id))).then((r) => r.every(Boolean));
@@ -525,6 +530,63 @@ async function main() {
   } catch (err) {
     failures++;
     console.log(`  ✗ SDG Index FAILED: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // ── Composite Indices (INFORM, GII, GPI, EPI, NRI, AIRI, SPI) ───
+  console.log(`\n📥 Ingesting composite indices...`);
+  try {
+    const countryRows = await query<{ iso3: string; name: string }>(
+      `SELECT iso3, name FROM countries`,
+    );
+    const nameMap = new Map<string, string>();
+    for (const c of countryRows) {
+      const norm = c.name.toLowerCase().trim().replace(/[.,'"&]/g, " ").replace(/\s+/g, " ").trim();
+      if (!nameMap.has(norm)) nameMap.set(norm, c.iso3);
+    }
+
+    const fetchJobs: Array<{ id: string; fn: () => Promise<IndicesDataPoint[]> }> = [
+      { id: "disaster_risk",       fn: fetchInformRisk },
+      { id: "innovation_idx",      fn: fetchGiiIndex },
+      { id: "global_peace",        fn: fetchGpi },
+      { id: "epi",                 fn: fetchEpi },
+      { id: "network_readiness",   fn: fetchNri },
+      { id: "ai_readiness",        fn: fetchAiReadiness },
+      { id: "social_progress_idx", fn: fetchSpi },
+    ];
+
+    const now = new Date().toISOString();
+    for (const job of fetchJobs) {
+      try {
+        if (await isFresh(job.id)) {
+          skipped++;
+          console.log(`  ⏭  ${job.id.padEnd(22)} (fresh, skipped)`);
+          continue;
+        }
+        const pts = await job.fn();
+        let inserted = 0;
+        for (const p of pts) {
+          const iso3 = p.iso3 ?? (p.name ? resolveIso3(p.name, nameMap) : null);
+          if (!iso3 || !knownCountries.has(iso3)) continue;
+          await execute(
+            `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
+               value=excluded.value, fetched_at=excluded.fetched_at`,
+            [iso3, p.indicatorId, p.year, p.value, now],
+          );
+          inserted++;
+        }
+        totalPoints += inserted;
+        successes++;
+        console.log(`  ✓ ${job.id.padEnd(22)} ${String(inserted).padStart(4)} pts`);
+      } catch (err) {
+        failures++;
+        console.log(`  ✗ ${job.id.padEnd(22)} FAILED: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  } catch (err) {
+    failures++;
+    console.log(`  ✗ Composite indices FAILED: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);

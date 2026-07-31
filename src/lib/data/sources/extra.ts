@@ -66,6 +66,18 @@ const GRAPHER_DATASETS: GrapherConfig[] = [
     indicatorId: "multidim_poverty",
     minYear: 2000,
   },
+  {
+    slug: "patent-applications-per-million",
+    valueColumn: "Patent applications per million people",
+    indicatorId: "patents_per_million",
+    minYear: 2000,
+  },
+  {
+    slug: "average-exposure-pm25-pollution",
+    valueColumn: "PM2.5 air pollution, mean annual exposure (micrograms per cubic meter)",
+    indicatorId: "air_quality",
+    minYear: 2000,
+  },
 ];
 
 function parseCsvLine(line: string): string[] {
