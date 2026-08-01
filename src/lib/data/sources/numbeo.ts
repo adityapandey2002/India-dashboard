@@ -82,10 +82,10 @@ function parseTableRows(html: string): string[][] {
   return rows;
 }
 
-async function scrapePage(url: string, columnIdx: number, indicatorId: string): Promise<NumbeoDataPoint[]> {
+async function scrapePage(url: string, columns: Array<[number, string]>): Promise<NumbeoDataPoint[]> {
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) return [];
 
@@ -95,16 +95,18 @@ async function scrapePage(url: string, columnIdx: number, indicatorId: string): 
 
   for (const cells of rows) {
     const countryName = cells[1];
-    const rawVal = cells[columnIdx];
-    if (!countryName || !rawVal) continue;
+    if (!countryName) continue;
 
     const iso3 = countryToIso3(countryName);
     if (!iso3) continue;
 
-    const val = parseFloat(rawVal);
-    if (isNaN(val)) continue;
-
-    points.push({ iso3, indicatorId, year: YEAR, value: val });
+    for (const [columnIdx, indicatorId] of columns) {
+      const rawVal = cells[columnIdx];
+      if (!rawVal) continue;
+      const val = parseFloat(rawVal);
+      if (isNaN(val)) continue;
+      points.push({ iso3, indicatorId, year: YEAR, value: val });
+    }
   }
 
   return points;
@@ -113,11 +115,15 @@ async function scrapePage(url: string, columnIdx: number, indicatorId: string): 
 export async function fetchNumbeoIndices(): Promise<NumbeoDataPoint[]> {
   const results = await Promise.allSettled([
     // Health Care page: column 2 = "Health Care Index"
-    scrapePage(`${NUMBEO_BASE}/health-care/rankings_by_country.jsp?title=${YEAR}`, 2, "healthcare_idx"),
+    scrapePage(`${NUMBEO_BASE}/health-care/rankings_by_country.jsp?title=${YEAR}`, [[2, "healthcare_idx"]]),
     // Crime page: column 2 = "Crime Index"
-    scrapePage(`${NUMBEO_BASE}/crime/rankings_by_country.jsp?title=${YEAR}`, 2, "crime_idx"),
-    // Quality of Life page: column 4 = "Safety Index"
-    scrapePage(`${NUMBEO_BASE}/quality-of-life/rankings_by_country.jsp?title=${YEAR}`, 4, "safety_idx"),
+    scrapePage(`${NUMBEO_BASE}/crime/rankings_by_country.jsp?title=${YEAR}`, [[2, "crime_idx"]]),
+    // Quality of Life page: col 2 = QOL, col 4 = Safety, col 6 = Cost of Living
+    scrapePage(`${NUMBEO_BASE}/quality-of-life/rankings_by_country.jsp?title=${YEAR}`, [
+      [2, "quality_of_life"],
+      [4, "safety_idx"],
+      [6, "cost_of_living"],
+    ]),
   ]);
 
   const all: NumbeoDataPoint[] = [];

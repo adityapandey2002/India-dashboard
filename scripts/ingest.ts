@@ -30,6 +30,7 @@ import { fetchOwidIndicators } from "../src/lib/data/sources/owid-generic";
 import { fetchNumbeoIndices } from "../src/lib/data/sources/numbeo";
 import { fetchExtraIndicators } from "../src/lib/data/sources/extra";
 import { fetchSdgIndex } from "../src/lib/data/sources/sdg";
+import { fetchDoingBusiness } from "../src/lib/data/sources/doing-business";
 import {
   fetchInformRisk, fetchGiiIndex, fetchGpi, fetchEpi,
   fetchNri, fetchAiReadiness, fetchSpi, resolveIso3,
@@ -75,6 +76,7 @@ const SOURCES = [
   { id: "itu",        name: "ITU ICT Development", url: "https://www.itu.int/", type: "api" },
   { id: "wipo",       name: "WIPO Global Innovation Index", url: "https://www.wipo.int/", type: "pdf" },
   { id: "vdem",       name: "V-Dem Institute", url: "https://www.v-dem.net/", type: "api" },
+  { id: "doing_business", name: "World Bank Doing Business (archived)", url: "https://archive.doingbusiness.org/", type: "pdf" },
 ];
 
 const CONCURRENCY = 5;
@@ -528,6 +530,28 @@ async function main() {
   } catch (err) {
     failures++;
     console.log(`  ✗ Composite indices FAILED: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // ── Ease of Doing Business (WB archived xlsx) ──────────────
+  console.log(`\n📥 Ingesting Ease of Doing Business (archived WB)...`);
+  try {
+    if (await isFresh("ease_of_doing_business")) {
+      skipped++;
+      console.log(`  ⏭  ease_of_doing_business (fresh, skipped)`);
+    } else {
+      const dbPts = (await fetchDoingBusiness()).filter((p) => knownCountries.has(p.iso3));
+      const now = new Date().toISOString();
+      const inserted = await insertPoints(
+        dbPts.map((p) => [p.iso3, p.indicatorId, p.year, p.value] as [string, string, number, number]),
+        now,
+      );
+      totalPoints += inserted;
+      successes++;
+      console.log(`  ✓ ease_of_doing_business ${String(inserted).padStart(4)} pts`);
+    }
+  } catch (err) {
+    failures++;
+    console.log(`  ✗ ease_of_doing_business FAILED: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);

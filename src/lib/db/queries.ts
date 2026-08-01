@@ -199,6 +199,11 @@ export async function getGlobalLatest(indicatorId: string): Promise<Array<{ iso3
   );
 }
 
+/** For the rankings page: every country's most recent value for an indicator. */
+export async function getRankingsForIndicator(indicatorId: string): Promise<Array<{ iso3: string; value: number; year: number }>> {
+  return getGlobalLatest(indicatorId);
+}
+
 export async function getDashboardStats(): Promise<{
   totalCountries: number;
   totalIndicators: number;

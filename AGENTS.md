@@ -62,6 +62,8 @@ To seed PG from scratch:
 - `status.ts` loads dotenv (reflects the working DB)
 - `xlsx` npm package installed for parsing xlsx data sources
 - `NODE_OPTIONS=--no-warnings` in build/ingest/index-embeddings scripts (set CMD syntax on Windows)
+- 4 more indicators: `ease_of_doing_business` (WB archived xlsx via `src/lib/data/sources/doing-business.ts`, India 2014–2020), `quality_of_life` + `cost_of_living` (Numbeo QOL page cols 2/6 via `numbeo.ts`, same fetch as `safety_idx`), `womens_economic_participation` (WB `SL.EMP.TOTL.SP.FE.ZS`). Now 114 indicators with data, ~118k points, 35 sources
+- Rankings page (`/rankings`): pick any indicator → full sortable/searchable world ranking table with India highlighted, India rank/percentile/rank-delta cards, and India's rank-over-time chart (reversed Y so rank 1 = top). Backed by `/api/rankings` + pure helpers `src/lib/rankings.ts` (competition ranking, ties share rank) + `src/lib/rank-direction.ts` (which indicators are lower-is-better, e.g. mortality/pollution/ranks). `TrendChart` now keys series by unique internal key so the India page (two "India" series) no longer throws duplicate-key errors.
 
 ## Remaining
 - 10 indicators still at 0 pts — no usable source found (ccpi = PDF-only per Germanwatch; global_competitiveness = WEF discontinued; digital_competitiveness = IMD paid; ict_development = ITU xlsx lacks an India row; broadband_speed = Ookla needs heavy tile processing; qs_rank, startup_ecosystem, govtech_maturity, open_data, eparticipation = no open CSV/API)

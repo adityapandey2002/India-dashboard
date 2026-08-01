@@ -21,16 +21,22 @@ type Props = {
 const DEFAULT_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"];
 
 export function TrendChart({ title, unit, series, height = 320 }: Props) {
+  // Give each series a unique internal key (names can collide, e.g. country == India)
+  const keyedSeries = series.map((s, i) => ({
+    ...s,
+    key: series.filter((x) => x.name === s.name).length > 1 ? `${s.name}#${i}` : s.name,
+  }));
+
   // Merge all years across series
   const years = Array.from(
-    new Set(series.flatMap((s) => s.data.map((d) => d.year))),
+    new Set(keyedSeries.flatMap((s) => s.data.map((d) => d.year))),
   ).sort((a, b) => a - b);
 
   const chartData = years.map((year) => {
     const row: Record<string, number | null> = { year };
-    for (const s of series) {
+    for (const s of keyedSeries) {
       const point = s.data.find((d) => d.year === year);
-      row[s.name] = point?.value ?? null;
+      row[s.key] = point?.value ?? null;
     }
     return row;
   });
@@ -78,11 +84,12 @@ export function TrendChart({ title, unit, series, height = 320 }: Props) {
             }}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          {series.map((s, i) => (
+          {keyedSeries.map((s, i) => (
             <Line
-              key={s.name}
+              key={s.key}
               type="monotone"
-              dataKey={s.name}
+              dataKey={s.key}
+              name={s.name}
               stroke={s.color ?? DEFAULT_COLORS[i % DEFAULT_COLORS.length]}
               strokeWidth={s.name === "India" ? 3 : 1.5}
               dot={false}

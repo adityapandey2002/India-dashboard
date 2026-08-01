@@ -24,6 +24,8 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "exports_pct_gdp",      name: "Exports of goods & services (% GDP)", category: "economy", source: "world_bank", sourceId: "NE.EXP.GNFS.ZS",     unit: "%",            description: "Total exports as share of GDP",                  freq: "annual" },
   { id: "gross_savings_pct",    name: "Gross savings (% GDP)",            category: "economy",    source: "world_bank", sourceId: "NY.GNS.ICTR.ZS",        unit: "%",            description: "Gross national savings as share of GDP",          freq: "annual" },
   { id: "tax_revenue_pct",      name: "Tax revenue (% GDP)",              category: "economy",    source: "world_bank", sourceId: "GC.TAX.TOTL.GD.ZS",     unit: "%",            description: "Total tax revenue as share of GDP",              freq: "annual" },
+  { id: "ease_of_doing_business", name: "Ease of Doing Business Index",   category: "economy",    source: "doing_business", sourceId: "EDB",              unit: "0-100",        description: "WB regulatory environment score (0=worst, 100=best)", freq: "annual" },
+  { id: "cost_of_living",        name: "Cost of Living Index",            category: "economy",    source: "numbeo",     sourceId: "COLI",                  unit: "index",        description: "Numbeo cost of living relative to New York (100)", freq: "biennial" },
 
   // Society
   { id: "hdi",                  name: "Human Development Index",      category: "society",    source: "undp",       sourceId: "HDI",                   unit: "0-1",          description: "Composite of life expectancy, education, income", freq: "annual" },
@@ -34,6 +36,7 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "gender_dev_idx",       name: "Gender Development Index",      category: "equality",   source: "undp",       sourceId: "GDI",                   unit: "0-1",        description: "Ratio of female to male HDI values",            freq: "annual" },
   { id: "population_total",     name: "Total population",              category: "society",    source: "undp",       sourceId: "POP",                   unit: "people",       description: "Total population",                              freq: "annual" },
   { id: "happiness_score",      name: "World Happiness Score",        category: "society",    source: "wef",        sourceId: "HAPPINESS",             unit: "0-10",         description: "Self-reported life evaluation (WHR)",            freq: "annual" },
+  { id: "quality_of_life",      name: "Quality of Life Index",         category: "society",    source: "numbeo",     sourceId: "QOL",                   unit: "index",        description: "Numbeo composite quality of life (base 100)",    freq: "biennial" },
   { id: "social_progress_idx",  name: "Social Progress Index",        category: "society",    source: "sspi",       sourceId: "SPI",                   unit: "0-100",        description: "Basic human needs + wellbeing of nations",       freq: "annual" },
   { id: "human_capital_idx",    name: "Human Capital Index",          category: "society",    source: "world_bank", sourceId: "HD.HCI.OVRL",            unit: "0-1",          description: "Knowledge + health + survival productivity",     freq: "annual" },
   { id: "multidim_poverty",     name: "Multidimensional Poverty",     category: "society",    source: "undp",       sourceId: "MPI",                   unit: "0-1",          description: "Share deprived in 1/3 of 10 indicators",         freq: "annual" },
@@ -131,6 +134,7 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "gender_inequality",    name: "Gender Inequality Index",      category: "equality",   source: "undp",       sourceId: "GII",                   unit: "0-1",          description: "UNDP reproductive health + empowerment",         freq: "annual" },
   { id: "gini",                 name: "Gini coefficient",             category: "equality",   source: "world_bank", sourceId: "SI.POV.GINI",           unit: "0-100",        description: "Income inequality (0=perfect equality)",         freq: "annual" },
   { id: "female_lfp",           name: "Female labour force participation", category: "equality", source: "world_bank", sourceId: "SL.TLF.CACT.FE.ZS", unit: "%",            description: "% of women aged 15+ in the labour force",        freq: "annual" },
+  { id: "womens_economic_participation", name: "Female employment-to-population ratio", category: "equality", source: "world_bank", sourceId: "SL.EMP.TOTL.SP.FE.ZS", unit: "%", description: "Share of women aged 15+ who are employed", freq: "annual" },
   { id: "poverty_215",          name: "Poverty headcount at $2.15/day", category: "equality",  source: "world_bank", sourceId: "SI.POV.DDAY",          unit: "%",            description: "Share of population living below $2.15/day",     freq: "annual" },
   { id: "vulnerable_employment", name: "Vulnerable employment",       category: "equality",    source: "world_bank", sourceId: "SL.EMP.VULN.ZS",        unit: "%",            description: "Own-account and contributing family workers as share of total employment", freq: "annual" },
 
@@ -151,7 +155,7 @@ export function getAvailableIndicators(): Indicator[] {
     }));
 }
 
-const READY_SOURCES = new Set(["world_bank", "undp", "who", "owid", "wgi", "ti", "un", "wef", "ei", "ihme", "oecd", "rsf", "heritage", "iep", "gtd", "ibp", "inform", "numbeo", "vdem", "sspi", "sdg", "oxford", "turtle", "startupblink", "ookla", "qs", "yale", "germanwatch", "iqair", "od", "imd", "itu", "wipo", "wjp", "unhcr"]);
+const READY_SOURCES = new Set(["world_bank", "undp", "who", "owid", "wgi", "ti", "un", "wef", "ei", "ihme", "oecd", "rsf", "heritage", "iep", "gtd", "ibp", "inform", "numbeo", "vdem", "sspi", "sdg", "oxford", "turtle", "startupblink", "ookla", "qs", "yale", "germanwatch", "iqair", "od", "imd", "itu", "wipo", "wjp", "unhcr", "doing_business"]);
 
 function isSourceReady(source: string): boolean {
   return READY_SOURCES.has(source);
