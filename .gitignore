@@ -51,3 +51,6 @@ data/*.db-wal
 Thumbs.db
 .idea/
 .vscode/
+
+.vercel
+.env*
