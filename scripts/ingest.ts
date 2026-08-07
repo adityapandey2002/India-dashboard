@@ -36,6 +36,9 @@ import {
   fetchNri, fetchAiReadiness, fetchSpi, resolveIso3,
   type IndicesDataPoint,
 } from "../src/lib/data/sources/indices";
+import {
+  fetchGci, fetchGovtechMaturity, fetchOpenData, fetchEparticipation,
+} from "../src/lib/data/sources/extra-indices";
 
 const FOCUS_COUNTRIES = [
   "IND", "USA", "CHN", "JPN", "DEU", "GBR", "FRA", "BRA", "RUS", "CAN",
@@ -501,6 +504,10 @@ async function main() {
       { id: "network_readiness",   fn: fetchNri },
       { id: "ai_readiness",        fn: fetchAiReadiness },
       { id: "social_progress_idx", fn: fetchSpi },
+      { id: "global_competitiveness", fn: fetchGci },
+      { id: "govtech_maturity",       fn: fetchGovtechMaturity },
+      { id: "open_data",              fn: fetchOpenData },
+      { id: "eparticipation",         fn: fetchEparticipation },
     ];
 
     const now = new Date().toISOString();
