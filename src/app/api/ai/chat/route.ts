@@ -16,6 +16,35 @@ type ContextChunk = {
   source: string;
 };
 
+/** Match the question against the historical-events library (with proof URLs). */
+function eventChunksFor(question: string): ContextChunk[] {
+  const q = question.toLowerCase();
+  const chunks: ContextChunk[] = [];
+  for (const ev of INDIA_EVENTS) {
+    const label = ev.label.toLowerCase();
+    const matches =
+      (q.includes("covid") || q.includes("pandemic")) && label.includes("covid") ||
+      (q.includes("demonetization") || q.includes("demonetisation") || q.includes("2016")) && label.includes("demonetization") ||
+      (q.includes("liberalization") || q.includes("liberalisation") || q.includes("1991")) && label.includes("liberalization") ||
+      (q.includes("jio") || q.includes("mobile data") || q.includes("internet boom")) && label.includes("jio") ||
+      (q.includes("gst") || q.includes("tax reform")) && label.includes("gst") ||
+      (q.includes("aadhaar")) && label.includes("aadhaar") ||
+      (q.includes("paris") || q.includes("climate commitment") || q.includes("renewable")) && label.includes("paris") ||
+      (q.includes("swachh") || q.includes("sanitation")) && label.includes("swachh") ||
+      (q.includes("ayushman") || q.includes("health insurance")) && label.includes("ayushman") ||
+      (q.includes("education policy") || q.includes(" nep")) && label.includes("education policy") ||
+      (q.includes("mgnrega") || q.includes("rural employment")) && label.includes("employment");
+    if (matches) {
+      chunks.push({
+        id: `event_${ev.year}_${ev.label.replace(/\s+/g, "_").toLowerCase()}`,
+        text: `${ev.label} (${ev.year}): ${ev.description}`,
+        source: ev.source,
+      });
+    }
+  }
+  return chunks;
+}
+
 async function buildContext(question: string): Promise<ContextChunk[]> {
   const chunks: ContextChunk[] = [];
   const lowerQ = question.toLowerCase();
@@ -112,28 +141,10 @@ async function buildContext(question: string): Promise<ContextChunk[]> {
   }
 
   // 4. Historical events — matched from the events library (with proof URLs)
-  for (const ev of INDIA_EVENTS) {
-    const q = lowerQ;
-    const matches =
-      (q.includes("covid") || q.includes("pandemic")) && ev.label.includes("COVID") ||
-      (q.includes("demonetization") || q.includes("demonetisation") || q.includes("2016")) && ev.label.includes("Demonetization") ||
-      (q.includes("liberalization") || q.includes("liberalisation") || q.includes("1991")) && ev.label.includes("Liberalization") ||
-      (q.includes("jio") || q.includes("mobile data") || q.includes("internet boom")) && ev.label.includes("Jio") ||
-      (q.includes("gst") || q.includes("tax reform")) && ev.label.includes("GST") ||
-      (q.includes("aadhaar")) && ev.label.includes("Aadhaar") ||
-      (q.includes("paris") || q.includes("climate commitment") || q.includes("renewable")) && ev.label.includes("Paris") ||
-      (q.includes("swachh") || q.includes("sanitation")) && ev.label.includes("Swachh") ||
-      (q.includes("ayushman") || q.includes("health insurance")) && ev.label.includes("Ayushman") ||
-      (q.includes("education policy") || q.includes("nep")) && ev.label.includes("Education Policy") ||
-      (q.includes("mgnrega") || q.includes("rural employment")) && ev.label.includes("Employment");
-    if (matches) {
-      chunks.push({
-        id: `event_${ev.year}_${ev.label.replace(/\s+/g, "_").toLowerCase()}`,
-        text: `${ev.label} (${ev.year}): ${ev.description}`,
-        source: ev.source,
-      });
-    }
-  }
+  chunks.push(...eventChunksFor(question));
+
+  return chunks.slice(0, 50);
+}
 
   // 5. General country data
   const countryMatches = lowerQ.match(/\b(usa|china|brazil|south africa|japan|germany|france|uk|russia|india)\b/g);
@@ -187,6 +198,11 @@ export async function POST(req: NextRequest) {
     } else {
       contextChunks = await buildContext(question);
     }
+
+    // Always include matched historical events (with proof URLs) — they are
+    // not part of the TF-IDF index, and the vector search has no way to
+    // surface them otherwise.
+    contextChunks = [...contextChunks, ...eventChunksFor(question)];
 
     if (contextChunks.length === 0) {
       return NextResponse.json({
