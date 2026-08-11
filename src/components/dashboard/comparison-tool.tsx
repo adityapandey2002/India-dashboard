@@ -12,6 +12,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Search, Sparkles, X } from "lucide-react";
+import { isHigherBetter } from "@/lib/rank-direction";
 
 type Country = { iso3: string; name: string; region: string | null };
 type Indicator = { id: string; name: string; category: string; unit: string | null };
@@ -106,7 +107,7 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
             const res = await fetch(`/api/indicators/series?country=${iso3}&indicator=${selectedIndicator}`);
             if (!res.ok) throw new Error(`Failed to fetch data for ${iso3}`);
             const json = await res.json();
-            return { iso3, points: (json.points ?? []).filter((p: { value: number | null }) => p.value != null) as SeriesPoint[] };
+            return { iso3, points: (json.data ?? []).filter((p: { value: number | null }) => p.value != null) as SeriesPoint[] };
           }),
         );
         if (cancelled) return;
@@ -147,6 +148,7 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
   })();
 
   const latestYear = chartData.length > 0 ? chartData[chartData.length - 1].year as number : null;
+  const higherBetter = isHigherBetter(selectedIndicator);
   const barData = latestYear
     ? selectedCountries
         .filter((iso3) => seriesData[iso3]?.some((p) => p.year === latestYear))
@@ -297,7 +299,14 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>{currentIndicator?.name ?? selectedIndicator}</span>
+              <span className="flex items-center gap-2">
+                {currentIndicator?.name ?? selectedIndicator}
+                {currentIndicator && (
+                  <Link href={`/indicator/${currentIndicator.id}`} className="text-xs text-blue-500 hover:underline font-normal">
+                    what is this? →
+                  </Link>
+                )}
+              </span>
               {currentIndicator?.unit && (
                 <Badge variant="secondary" className="text-xs">{currentIndicator.unit}</Badge>
               )}
@@ -400,7 +409,7 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                         const indiaVal = barData.find((b) => b.iso3 === "IND")?.value ?? 0;
                         const diff = dVal - indiaVal;
                         const pct = indiaVal !== 0 ? ((diff / indiaVal) * 100).toFixed(1) : "∞";
-                        const isBetter = diff > 0;
+                        const isBetter = higherBetter ? diff > 0 : diff < 0;
                         return (
                           <div key={d.iso3} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                             <div className="flex items-center gap-2">
@@ -409,7 +418,7 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                             </div>
                             <div className="text-right">
                               <div className="font-mono text-sm">
-                                {isBetter ? "+" : ""}{diff.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                {diff > 0 ? "+" : ""}{diff.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                               </div>
                               <div className={`text-xs font-mono ${isBetter ? "text-green-600" : "text-red-600"}`}>
                                 ({pct}% vs India)

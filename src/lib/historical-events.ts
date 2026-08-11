@@ -21,7 +21,7 @@ export const INDIA_EVENTS: HistoricalEvent[] = [
     description: "India ended the License Raj, devalued the rupee, cut tariffs and opened to FDI — the start of sustained high GDP growth.",
     source: "https://www.worldbank.org/en/news/feature/2016/07/01/the-start-of-indias-economic-journey",
     sourceLabel: "World Bank",
-    indicatorIds: ["gdp_current_usd", "gdp_growth_pct", "gdp_per_capita", "fdi_inflow_usd", "gdp_ppp_usd"],
+    indicatorIds: ["gdp_current_usd", "gdp_growth_pct", "gdp_per_capita", "fdi_inflow_usd", "gdp_ppp_usd", "hdi", "gni_per_capita", "poverty_215"],
   },
   {
     year: 2003,
@@ -53,7 +53,7 @@ export const INDIA_EVENTS: HistoricalEvent[] = [
     description: "₹500/₹1000 notes (86% of cash) withdrawn — short-term GDP dip and cash crunch; accelerated digital payments adoption.",
     source: "https://www.rbi.org.in/Scripts/AnnualReportPublications.aspx?Id=1251",
     sourceLabel: "RBI Annual Report 2016-17",
-    indicatorIds: ["gdp_current_usd", "gdp_growth_pct", "inflation_pct"],
+    indicatorIds: ["gdp_current_usd", "gdp_growth_pct", "inflation_pct", "hdi", "gni_per_capita"],
   },
   {
     year: 2017,
@@ -215,7 +215,7 @@ export const INDIA_EVENTS: HistoricalEvent[] = [
     description: "NEP 2020 — first education overhaul in 34 years; focus on foundational literacy, vocational skills and research.",
     source: "https://www.education.gov.in/sites/upload_files/mhrd/files/NEP_Final_English_0.pdf",
     sourceLabel: "Ministry of Education, India",
-    indicatorIds: ["education_idx", "literacy_rate", "qs_rank", "pisa_score"],
+    indicatorIds: ["education_idx", "literacy_rate", "qs_rank", "pisa_score", "hdi"],
   },
 
   // ── Equality / Society ───────────────────────────────────

@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/explore", label: "Explore" },
   { href: "/compare", label: "Compare" },
   { href: "/report-card", label: "Report Card" },
+  { href: "/methodology", label: "Methodology" },
   { href: "/chat", label: "Ask AI" },
 ];
 

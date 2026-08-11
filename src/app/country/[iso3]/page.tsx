@@ -212,16 +212,19 @@ export default async function CountryPage({ params, searchParams }: { params: Pr
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {best.map((e) => (
-                    <Link key={e.id} href={`/compare?indicator=${e.id}`} className="flex items-center justify-between rounded-lg border p-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors">
+                    <div key={e.id} className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:border-amber-300 hover:bg-amber-50/50">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{e.name}</p>
+                        <Link href={`/indicator/${e.id}`} className="truncate block text-sm font-medium hover:text-amber-700">
+                          {e.name}
+                        </Link>
                         <p className="text-xs text-muted-foreground">{fmtValue(e.value, e.unit)} · {e.year}</p>
+                        <Link href={`/compare?indicator=${e.id}`} className="text-xs text-blue-500 hover:underline">Compare →</Link>
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-green-600">#{e.rank!.rank}</span>
                         <span className="text-xs text-muted-foreground">/{e.rank!.total}</span>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </CardContent>
               </Card>
@@ -235,16 +238,19 @@ export default async function CountryPage({ params, searchParams }: { params: Pr
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {worst.map((e) => (
-                    <Link key={e.id} href={`/compare?indicator=${e.id}`} className="flex items-center justify-between rounded-lg border p-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors">
+                    <div key={e.id} className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:border-amber-300 hover:bg-amber-50/50">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{e.name}</p>
+                        <Link href={`/indicator/${e.id}`} className="truncate block text-sm font-medium hover:text-amber-700">
+                          {e.name}
+                        </Link>
                         <p className="text-xs text-muted-foreground">{fmtValue(e.value, e.unit)} · {e.year}</p>
+                        <Link href={`/compare?indicator=${e.id}`} className="text-xs text-blue-500 hover:underline">Compare →</Link>
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-red-600">#{e.rank!.rank}</span>
                         <span className="text-xs text-muted-foreground">/{e.rank!.total}</span>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </CardContent>
               </Card>
@@ -281,9 +287,12 @@ export default async function CountryPage({ params, searchParams }: { params: Pr
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium group-hover:text-amber-700 dark:group-hover:text-amber-300">
+                        <Link
+                          href={`/indicator/${entry.id}`}
+                          className="truncate text-sm font-medium block group-hover:text-amber-700 dark:group-hover:text-amber-300"
+                        >
                           {entry.name}
-                        </p>
+                        </Link>
                         <p className="text-xs text-muted-foreground">{entry.id}</p>
                       </div>
                       <Badge variant="secondary" className="shrink-0 text-xs">{entry.unit ?? "index"}</Badge>

@@ -84,7 +84,7 @@ export function ExploreClient({
         {filtered.map((c) => (
           <Link
             key={c.indicatorId}
-            href={`/compare?indicator=${c.indicatorId}`}
+            href={`/indicator/${c.indicatorId}`}
             className="group rounded-lg border p-4 transition-colors hover:border-amber-400 hover:bg-amber-50/50 dark:hover:border-amber-600 dark:hover:bg-amber-950/20"
           >
             <div className="flex items-start justify-between gap-2">
@@ -117,6 +117,12 @@ export function ExploreClient({
               )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground capitalize">Source: {c.source}</p>
+            <p
+              className="mt-1 text-xs text-blue-500"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Link href={`/compare?indicator=${c.indicatorId}`} className="hover:underline">Compare countries →</Link>
+            </p>
           </Link>
         ))}
       </div>

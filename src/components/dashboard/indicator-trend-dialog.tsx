@@ -60,7 +60,17 @@ export function IndicatorTrendDialog({ open, onOpenChange, indicatorId, indicato
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg pr-8">
-            {indicatorName}
+            <span className="inline-flex items-center gap-2">
+              {indicatorName}
+              <a
+                href={`/indicator/${indicatorId}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:underline font-normal"
+              >
+                view details
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </span>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               {unit && <Badge variant="secondary" className="text-xs capitalize">{unit}</Badge>}
               <Badge variant="outline" className="text-xs capitalize">{category.replace(/_/g, " ")}</Badge>

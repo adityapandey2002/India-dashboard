@@ -1,39 +1,15 @@
 export const dynamic = "force-dynamic";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ExportButtons } from "@/components/dashboard/export-buttons";
 import { ReportCardRadar } from "@/components/dashboard/report-card-radar";
-import { ArrowUpRight, ArrowDownRight, Minus, FileText, Calendar, Globe, BarChart2, Heart, Shield, Leaf, Zap, Users, Building2, BookOpen, Stethoscope, TrendingUp, TrendingDown, type LucideIcon } from "lucide-react";
+import { ReportCardSections } from "@/components/dashboard/report-card-sections";
+import { ArrowUpRight, ArrowDownRight, Minus, FileText, Calendar, Globe, BarChart2, TrendingUp, TrendingDown, type LucideIcon } from "lucide-react";
 import { getDashboardStats, getLatestSnapshot, getAllIndicators, getCountryHistory, getLatestRanks } from "@/lib/db/queries";
 import { indicatorScore, average, gradeFor, prevValueInSeries, type Grade } from "@/lib/report-card";
 
 const INDIA = "IND";
 const PEER = "CHN";
-
-const ICONS: Record<string, LucideIcon> = {
-  economy: Building2,
-  society: Users,
-  governance: Shield,
-  technology: Zap,
-  education: BookOpen,
-  healthcare: Stethoscope,
-  environment: Leaf,
-  safety: Shield,
-  equality: Heart,
-  digital_gov: Globe,
-};
-
-function fmtValue(v: number | null, unit?: string | null): string {
-  if (v == null) return "—";
-  let s: string;
-  if (Math.abs(v) >= 1e12) s = `${(v / 1e12).toFixed(2)}T`;
-  else if (Math.abs(v) >= 1e9) s = `${(v / 1e9).toFixed(2)}B`;
-  else if (Math.abs(v) >= 1e6) s = `${(v / 1e6).toFixed(2)}M`;
-  else if (Math.abs(v) >= 1e3) s = `${(v / 1e3).toFixed(1)}k`;
-  else s = v.toFixed(unit === "%" ? 1 : 0);
-  return unit ? `${s} ${unit}` : s;
-}
 
 function getTrend(current: number | null, previous: number | null) {
   if (current == null || previous == null || previous === 0) return null;
@@ -207,79 +183,29 @@ export default async function ReportCardPage() {
         {/* Radar */}
         {radarData.length > 0 && <ReportCardRadar data={radarData} />}
 
-        {/* Category Sections */}
-        {catReport.map(({ category, score, entries }) => {
-          const Icon = ICONS[category] || Globe;
-          const grade = score != null ? gradeFor(score) : null;
-          return (
-            <Card key={category} className="overflow-hidden">
-              <CardHeader className="bg-muted/30">
-                <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-2 text-lg">
-                    <Icon className="h-5 w-5 text-amber-500" />
-                    {category.replace(/_/g, " ")}
-                    {score != null && grade && (
-                      <Badge variant="outline" className={`ml-1 ${grade.color}`}>
-                        {grade.letter} · {score.toFixed(0)}
-                      </Badge>
-                    )}
-                  </div>
-                  {score != null && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-xs font-medium text-muted-foreground">Score</span>
-                      <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={`h-full rounded-full ${score >= 55 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500"}`}
-                          style={{ width: `${Math.min(100, score)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 p-6">
-                {entries.map((entry) => {
-                  const rankColor = entry.rank !== null
-                    ? entry.rank <= Math.ceil((entry.total ?? 100) * 0.1) ? "text-green-600"
-                    : entry.rank <= Math.ceil((entry.total ?? 100) * 0.25) ? "text-amber-600"
-                    : entry.rank <= Math.ceil((entry.total ?? 100) * 0.5) ? "text-blue-600"
-                    : "text-red-600"
-                    : "text-muted-foreground";
-                  const trend = entry.trend;
-
-                  return (
-                    <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-card border rounded-lg hover:border-amber-200 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-base">{entry.name}</span>
-                          <Badge variant="secondary" className="text-xs">{entry.unit ?? "index"}</Badge>
-                          {entry.year && <span className="text-xs text-muted-foreground">({entry.year})</span>}
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                          Value: <span className="font-mono font-medium">{fmtValue(entry.value, entry.unit ?? undefined)}</span>
-                        </p>
-                      </div>
-                      <div className="flex flex-col sm:items-end gap-1 text-right">
-                        {entry.rank !== null && entry.total !== null && (
-                          <div className="flex items-center gap-2">
-                            <span className={`font-bold text-lg ${rankColor}`}>#{entry.rank}</span>
-                            <span className="text-xs text-muted-foreground">of {entry.total}</span>
-                          </div>
-                        )}
-                        {trend && (
-                          <div className="flex items-center gap-1">
-                            <trend.icon className={`${trend.color} h-4 w-4`} />
-                            <span className={`font-mono text-sm ${trend.color}`}>{trend.label}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          );
-        })}
+        {/* Category Sections (collapsible: main section visible, indicators on click) */}
+        <ReportCardSections
+          sections={catReport.map(({ category, score, entries }) => ({
+            category,
+            score,
+            gradeLetter: score != null ? gradeFor(score).letter : null,
+            gradeColor: score != null ? gradeFor(score).color : null,
+            entries: entries.map((e) => ({
+              id: e.id,
+              name: e.name,
+              category: e.category,
+              unit: e.unit,
+              value: e.value,
+              year: e.year,
+              rank: e.rank,
+              total: e.total,
+              score: e.score,
+              trend: e.trend
+                ? { icon: e.trend.icon === ArrowUpRight ? "up" as const : e.trend.icon === ArrowDownRight ? "down" as const : "flat" as const, color: e.trend.color, label: e.trend.label }
+                : null,
+            })),
+          }))}
+        />
 
         {/* Footer */}
         <div className="border-t pt-6 text-center text-sm text-muted-foreground space-y-2">

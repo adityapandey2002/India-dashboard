@@ -157,20 +157,27 @@ export function RankingsClient({
           <label htmlFor="rank-indicator" className="mb-1 block text-xs font-medium text-muted-foreground">
             Indicator
           </label>
-          <select
-            id="rank-indicator"
-            value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className="w-full sm:w-80 rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
-          >
-            {byCategory.map(([cat, inds]) => (
-              <optgroup key={cat} label={cat.replace(/_/g, " ")}>
-                {inds.map((ind) => (
-                  <option key={ind.id} value={ind.id}>{ind.name}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              id="rank-indicator"
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+              className="w-full sm:w-80 rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
+            >
+              {byCategory.map(([cat, inds]) => (
+                <optgroup key={cat} label={cat.replace(/_/g, " ")}>
+                  {inds.map((ind) => (
+                    <option key={ind.id} value={ind.id}>{ind.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            {current && (
+              <Link href={`/indicator/${current.id}`} className="shrink-0 text-xs text-blue-500 hover:underline">
+                What is this? →
+              </Link>
+            )}
+          </div>
         </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

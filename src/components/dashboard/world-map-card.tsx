@@ -343,6 +343,10 @@ export function WorldMapCard({ indicators, regions }: Props) {
             <p className="text-xs text-muted-foreground mt-1">
               {currIndicator?.name ?? selectedIndicator} · {selectedYear ? `${selectedYear}` : "latest"} · {data.size} countries
               {continent !== "world" && ` · zoomed to ${CONTINENTS.find((c) => c.key === continent)?.label}`}
+              {" "}·{" "}
+              <a href={`/indicator/${selectedIndicator}`} className="text-blue-500 hover:underline" onClick={(e) => e.stopPropagation()}>
+                what is this? →
+              </a>
             </p>
             {currIndicator?.description && (
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{currIndicator.description}</p>
