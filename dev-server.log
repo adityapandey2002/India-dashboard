@@ -1,0 +1,17 @@
+
+> india-dashboard@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.11 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.8:3000
+- Environments: .env.local, .env
+✓ Ready in 1047ms
+
+ GET /api/indicators/leaderboard?indicator=gdp_current_usd 200 in 2.3s (next.js: 1085ms, application-code: 1264ms)
+ GET /api/indicators/series?country=IND&indicator=gdp_current_usd 200 in 485ms (next.js: 333ms, application-code: 153ms)
+ GET /api/indicators/leaderboard?indicator=gdp_current_usd&limit=250 200 in 977ms (next.js: 12ms, application-code: 965ms)
+○ Compiling / ...
+ GET / 200 in 16.9s (next.js: 11.7s, application-code: 5.2s)
+ GET /api/indicators/leaderboard?indicator=gdp_current_usd&limit=5 200 in 922ms (next.js: 9ms, application-code: 913ms)
+ GET /api/indicators/leaderboard?indicator=gdp_current_usd&limit=1000 200 in 312ms (next.js: 5ms, application-code: 306ms)

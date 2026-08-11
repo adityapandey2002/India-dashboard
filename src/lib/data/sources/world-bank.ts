@@ -80,14 +80,32 @@ function isDataEnvelope<T>(env: WbEnvelope<T>): env is [WbMeta, T[]] {
 }
 
 /**
+ * Fetch every page of a World Bank endpoint. The API caps `per_page`
+ * (~12000 rows), so `/country/all` calls that exceed it would silently
+ * truncate without this loop.
+ */
+async function wbFetchAll<T>(path: string, params: Record<string, string | number> = {}): Promise<T[]> {
+  const out: T[] = [];
+  let page = 1;
+  while (true) {
+    const env = await wbFetch<T>(path, { ...params, page });
+    if (!isDataEnvelope(env) || env[1].length === 0) break;
+    out.push(...env[1]);
+    const pages = Number(env[0].pages);
+    if (page >= pages) break;
+    page++;
+  }
+  return out;
+}
+
+/**
  * Fetch a list of all countries the World Bank tracks.
  * Used to populate the `countries` table on first run.
  */
 export async function fetchAllCountries(): Promise<WbCountry[]> {
-  const env = await wbFetch<WbCountry>("/country", { per_page: 400 });
-  if (!isDataEnvelope(env)) return [];
+  const rows = await wbFetchAll<WbCountry>("/country", { per_page: 400 });
   // WB returns aggregate regions too (e.g. "World", "Europe"). Filter them.
-  return env[1].filter((c) => c.region.id !== "NA" && c.id.length === 3);
+  return rows.filter((c) => c.region.id !== "NA" && c.id.length === 3);
 }
 
 /**
@@ -105,9 +123,8 @@ export async function fetchIndicator(
   toYear: number = new Date().getFullYear(),
 ): Promise<WbDataPoint[]> {
   const countryPath = countries.length ? `/country/${countries.join(";")}` : "/country/all";
-  const env = await wbFetch<WbDataPoint>(`${countryPath}/indicator/${sourceId}`, {
+  const rows = await wbFetchAll<WbDataPoint>(`${countryPath}/indicator/${sourceId}`, {
     date: `${fromYear}:${toYear}`,
   });
-  if (!isDataEnvelope(env)) return [];
-  return env[1].filter((d) => d.value !== null);
+  return rows.filter((d) => d.value !== null);
 }

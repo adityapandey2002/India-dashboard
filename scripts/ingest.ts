@@ -40,11 +40,13 @@ import {
   fetchGci, fetchGovtechMaturity, fetchOpenData, fetchEparticipation,
 } from "../src/lib/data/sources/extra-indices";
 
-const FOCUS_COUNTRIES = [
-  "IND", "USA", "CHN", "JPN", "DEU", "GBR", "FRA", "BRA", "RUS", "CAN",
-  "AUS", "KOR", "ITA", "MEX", "IDN", "TUR", "SAU", "CHE", "NLD", "ZAF",
-  "ARG", "SWE", "NOR", "ESP", "SGP", "BGD", "PAK", "LKA", "NPL", "BTN",
-];
+/**
+ * World Bank indicators are fetched for ALL countries (empty country list =
+ * `/country/all`), so the world map + rankings show the whole world — not
+ * just this shortlist. Rows for WB aggregates (WLD, HIC, ...) are filtered
+ * out via `knownCountries`.
+ */
+const FOCUS_COUNTRIES: string[] = [];
 
 const SOURCES = [
   { id: "world_bank", name: "World Bank Open Data", url: "https://data.worldbank.org/", type: "api" },
@@ -152,23 +154,23 @@ async function insertPoints(rows: Array<[string, string, number, number]>, now: 
   );
 }
 
-async function runOne(ind: typeof INDICATORS[number]) {
+async function runOne(
+  ind: typeof INDICATORS[number],
+  knownCountries: Set<string>,
+) {
   if (await isFresh(ind.id)) {
     return { ok: true as const, count: 0, skipped: true };
   }
   const t0 = Date.now();
-  const pts = await fetchIndicator(ind.sourceId, FOCUS_COUNTRIES, FROM_YEAR, new Date().getFullYear());
+  const pts = (await fetchIndicator(ind.sourceId, [], FROM_YEAR, new Date().getFullYear()))
+    .filter((p) => knownCountries.has(p.countryiso3code));
   const now = new Date().toISOString();
+  const rows: Array<[string, string, number, number]> = [];
   for (const p of pts) {
-    await execute(
-      `INSERT INTO data_points (country_iso3, indicator_id, year, value, fetched_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(country_iso3, indicator_id, year) DO UPDATE SET
-         value=excluded.value, fetched_at=excluded.fetched_at`,
-      [p.countryiso3code, ind.id, parseInt(p.date, 10), p.value, now],
-    );
+    rows.push([p.countryiso3code, ind.id, parseInt(p.date, 10), p.value]);
   }
-  return { ok: true as const, count: pts.length, skipped: false, ms: Date.now() - t0 };
+  const inserted = await insertPoints(rows, now);
+  return { ok: true as const, count: inserted, skipped: false, ms: Date.now() - t0 };
 }
 
 /** Simple worker pool — runs at most `CONCURRENCY` tasks in parallel. */
@@ -198,7 +200,7 @@ async function main() {
   const knownCountries = new Set(knownRows.map((r) => r.iso3));
 
   const wbIndicators = INDICATORS.filter((i) => i.source === "world_bank");
-  console.log(`\n📥 Fetching ${wbIndicators.length} World Bank indicators for ${FOCUS_COUNTRIES.length} countries (${CONCURRENCY} parallel)...\n`);
+  console.log(`\n📥 Fetching ${wbIndicators.length} World Bank indicators for all ${knownCountries.size} countries (${CONCURRENCY} parallel)...\n`);
 
   let totalPoints = 0;
   let successes   = 0;
@@ -207,7 +209,7 @@ async function main() {
 
   await pool(wbIndicators, async (ind) => {
     try {
-      const r = await runOne(ind);
+      const r = await runOne(ind, knownCountries);
       if (r.skipped) {
         skipped += 1;
         console.log(`  ⏭  ${ind.id.padEnd(22)} (fresh, skipped)`);

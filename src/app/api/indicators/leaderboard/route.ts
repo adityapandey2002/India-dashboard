@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLeaderboard, getLatestYear } from "@/lib/db/queries";
+import { query } from "@/lib/db/client";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -15,5 +16,16 @@ export async function GET(req: NextRequest) {
   const limit = limitParam ? parseInt(limitParam, 10) : 30;
 
   const data = await getLeaderboard(indicatorId, year, limit);
-  return NextResponse.json({ indicator: indicatorId, year, data });
+  const years = await query<{ yr: number }>(
+    `SELECT DISTINCT year AS yr FROM data_points
+     WHERE indicator_id = ? AND value IS NOT NULL
+     ORDER BY yr DESC`,
+    [indicatorId],
+  );
+  return NextResponse.json({
+    indicator: indicatorId,
+    year,
+    years: years.map((r) => r.yr),
+    data,
+  });
 }

@@ -10,11 +10,14 @@ type Props = {
   indicators: Array<{ id: string; name: string; category: string }>;
 };
 
-/** topojson `id` is the numeric ISO-3166-1 code → ISO3 for linking/coloring. */
+/** topojson `id` is the numeric ISO-3166-1 code → ISO3 for linking/coloring.
+ *  Countries we never plot are mapped to null (Antarctica is dropped entirely
+ *  so the Mercator fit isn't stretched). */
 const NUM_ID_TO_ISO3: Record<string, string | null> = {
   "004": "AFG", "008": "ALB", "012": "DZA", "024": "AGO", "031": "AZE",
   "032": "ARG", "036": "AUS", "040": "AUT", "050": "BGD", "051": "ARM",
   "056": "BEL", "064": "BTN", "068": "BOL", "070": "BIH", "072": "BWA",
+  "044": "BHS", "270": "GMB", "729": "SDN",
   "076": "BRA", "084": "BLZ", "090": "SLB", "096": "BRN", "100": "BGR",
   "104": "MMR", "108": "BDI", "112": "BLR", "116": "KHM", "120": "CMR",
   "124": "CAN", "140": "CAF", "144": "LKA", "148": "TCD", "152": "CHL",
@@ -87,10 +90,13 @@ export function WorldMapCard({ indicators }: Props) {
         const res = await fetch("/world-110m.json");
         const topology = await res.json();
         const countries = feature(topology, topology.objects.countries) as any;
-        const projection = d3.geoMercator().fitSize([800, 450], countries);
+        // Drop Antarctica + features without an id so fitSize produces a
+        // properly proportioned world map instead of a tall white strip.
+        const plotted = countries.features.filter((f: any) => f.id && f.id !== "010");
+        const projection = d3.geoMercator().fitSize([800, 450], { type: "FeatureCollection", features: plotted });
         const geoGenerator = d3.geoPath(projection);
         setPaths(
-          countries.features.map((f: any) => ({
+          plotted.map((f: any) => ({
             id: f.id,
             name: f.properties.name,
             path: geoGenerator(f) ?? "",
@@ -115,8 +121,8 @@ export function WorldMapCard({ indicators }: Props) {
         if (!cancelled) {
           const rows = json.data ?? json.leaderboard ?? [];
           setData(new Map(rows.map((r: any) => [r.iso3 ?? r.country_iso3, r.value])));
-          if (json.year && !selectedYear) {
-            setYearsWithData((prev) => prev.includes(json.year) ? prev : [...prev, json.year].sort((a, b) => b - a));
+          if (Array.isArray(json.years) && json.years.length > 0) {
+            setYearsWithData(json.years);
           }
         }
       } catch {
