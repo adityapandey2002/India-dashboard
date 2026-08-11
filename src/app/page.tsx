@@ -50,7 +50,7 @@ export default async function HomePage() {
     getAllIndicators(),
     query<{ id: string; name: string }>(`SELECT id, name FROM sources ORDER BY name`),
     query<{ indicatorId: string; dataPoints: number }>(
-      `SELECT indicator_id AS indicatorId, COUNT(*) AS dataPoints FROM data_points GROUP BY indicator_id`
+      `SELECT indicator_id AS "indicatorId", COUNT(*) AS "dataPoints" FROM data_points GROUP BY indicator_id`
     ),
   ]);
   const countryByIso = new Map(countries.map((c) => [c.iso3, c.name]));
