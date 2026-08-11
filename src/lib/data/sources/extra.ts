@@ -78,6 +78,12 @@ const GRAPHER_DATASETS: GrapherConfig[] = [
     indicatorId: "air_quality",
     minYear: 2000,
   },
+  {
+    slug: "fossil-fuels-share-energy",
+    valueColumn: "Fossil fuels",
+    indicatorId: "fossil_fuel_energy",
+    minYear: 2000,
+  },
 ];
 
 function parseCsvLine(line: string): string[] {

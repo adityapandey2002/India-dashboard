@@ -18,6 +18,8 @@ const LOWER_IS_BETTER = new Set([
   // Governance
   "press_freedom", // rank: lower better
   "corruption_idx", // higher = more corrupt
+  // Education
+  "student_teacher", // lower pupil:teacher ratio better
   // Healthcare
   "infant_mortality",
   "maternal_mortality",
