@@ -15,3 +15,6 @@
  GET / 200 in 16.9s (next.js: 11.7s, application-code: 5.2s)
  GET /api/indicators/leaderboard?indicator=gdp_current_usd&limit=5 200 in 922ms (next.js: 9ms, application-code: 913ms)
  GET /api/indicators/leaderboard?indicator=gdp_current_usd&limit=1000 200 in 312ms (next.js: 5ms, application-code: 306ms)
+ GET /api/indicators/leaderboard?indicator=gdp_current_usd&limit=250 200 in 1899ms (next.js: 387ms, application-code: 1513ms)
+ GET / 200 in 3.5s (next.js: 240ms, application-code: 3.3s)
+ GET / 200 in 2.2s (next.js: 17ms, application-code: 2.2s)

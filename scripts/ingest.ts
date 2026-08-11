@@ -167,6 +167,7 @@ async function runOne(
   const now = new Date().toISOString();
   const rows: Array<[string, string, number, number]> = [];
   for (const p of pts) {
+    if (p.value == null) continue;
     rows.push([p.countryiso3code, ind.id, parseInt(p.date, 10), p.value]);
   }
   const inserted = await insertPoints(rows, now);
