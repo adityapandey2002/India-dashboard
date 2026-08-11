@@ -60,6 +60,31 @@ const HISTORICAL_EVENTS = [
   { year: 1991, label: "Economic Liberalization", description: "India ended License Raj, opened to FDI, devalued rupee." },
 ];
 
+/** Pastel sequential palette (light → deep): cream → mint → teal → cyan → soft blue → lavender. */
+const PASTEL_STOPS: Array<[number, number, number]> = [
+  [254, 249, 195], // yellow-100
+  [187, 247, 208], // green-200
+  [153, 246, 228], // teal-200
+  [165, 243, 252], // cyan-200
+  [191, 219, 254], // blue-200
+  [221, 214, 254], // violet-200
+];
+
+function pastelColor(t: number): string {
+  const x = Math.max(0, Math.min(1, t)) * (PASTEL_STOPS.length - 1);
+  const i = Math.min(Math.floor(x), PASTEL_STOPS.length - 2);
+  const f = x - i;
+  const [r1, g1, b1] = PASTEL_STOPS[i];
+  const [r2, g2, b2] = PASTEL_STOPS[i + 1];
+  return `rgb(${Math.round(r1 + (r2 - r1) * f)}, ${Math.round(g1 + (g2 - g1) * f)}, ${Math.round(b1 + (b2 - b1) * f)})`;
+}
+
+const LEGEND_GRADIENT = `linear-gradient(to right, ${PASTEL_STOPS.map(([r, g, b]) => `rgb(${r}, ${g}, ${b})`).join(", ")})`;
+
+function fmtCompact(v: number): string {
+  return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(v);
+}
+
 export function WorldMapCard({ indicators }: Props) {
   const [selectedIndicator, setSelectedIndicator] = useState("gdp_current_usd");
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -150,12 +175,9 @@ export function WorldMapCard({ indicators }: Props) {
   const getColor = (id: string) => {
     const iso3 = NUM_ID_TO_ISO3[id];
     const v = iso3 ? data.get(iso3) : undefined;
-    if (v == null || isNaN(v)) return "#e5e7eb";
+    if (v == null || isNaN(v)) return "#f1f5f9";
     const t = Math.max(0, Math.min(1, (v - vMin) / vRange));
-    const r = Math.round(255 * (1 - t * 0.8));
-    const g = Math.round(200 + 55 * (1 - t * 0.4));
-    const b = Math.round(200 + 55 * (1 - t));
-    return `rgb(${r}, ${g}, ${b})`;
+    return pastelColor(t);
   };
 
   return (
@@ -208,27 +230,36 @@ export function WorldMapCard({ indicators }: Props) {
         )}
         {!loading && (
           <div className="relative">
-            <svg viewBox="0 0 800 450" className="w-full h-auto" style={{ maxHeight: 400 }}>
-              {paths.map(({ id, name, path }, idx) => {
-                const iso3 = NUM_ID_TO_ISO3[id];
-                if (!iso3) return <path key={`${id}-${idx}`} d={path || undefined} fill="#e5e7eb" stroke="#fff" strokeWidth={0.5} />;
-                return (
-                  <a key={`${id}-${idx}`} href={`/country/${iso3}`} className="cursor-pointer">
-                    <path
-                      d={path || undefined}
-                      fill={getColor(id)}
-                      stroke="#fff"
-                      strokeWidth={0.5}
-                      className="transition-colors duration-150 hover:opacity-80"
-                      onMouseEnter={() => {
-                        const v = data.get(iso3);
-                        setHovered({ name, value: v ?? null });
-                      }}
-                      onMouseLeave={() => setHovered(null)}
-                    />
-                  </a>
-                );
-              })}
+            <div className="overflow-hidden rounded-xl border border-border/60 shadow-sm">
+              <svg viewBox="0 0 800 450" className="w-full h-auto" style={{ maxHeight: 400, display: "block" }}>
+                <defs>
+                  <linearGradient id="map-ocean" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#dbeafe" />
+                    <stop offset="55%" stopColor="#e0f2fe" />
+                    <stop offset="100%" stopColor="#f5f3ff" />
+                  </linearGradient>
+                </defs>
+                <rect width="800" height="450" fill="url(#map-ocean)" />
+                {paths.map(({ id, name, path }, idx) => {
+                  const iso3 = NUM_ID_TO_ISO3[id];
+                  if (!iso3) return <path key={`${id}-${idx}`} d={path || undefined} fill="#f8fafc" stroke="#fff" strokeWidth={0.6} />;
+                  return (
+                    <a key={`${id}-${idx}`} href={`/country/${iso3}`} className="cursor-pointer">
+                      <path
+                        d={path || undefined}
+                        fill={getColor(id)}
+                        stroke="#fff"
+                        strokeWidth={0.6}
+                        className="transition-opacity duration-150 hover:opacity-75"
+                        onMouseEnter={() => {
+                          const v = data.get(iso3);
+                          setHovered({ name, value: v ?? null });
+                        }}
+                        onMouseLeave={() => setHovered(null)}
+                      />
+                    </a>
+                  );
+                })}
               {showLabels && paths.map(({ name, label }, idx) =>
                 label ? (
                   <text
@@ -245,21 +276,22 @@ export function WorldMapCard({ indicators }: Props) {
                   </text>
                 ) : null
               )}
-            </svg>
+              </svg>
+            </div>
             {hovered && (
-              <div className="absolute bottom-2 left-2 bg-card border rounded-lg px-3 py-1.5 text-sm shadow-sm pointer-events-none">
-                <span className="font-medium">{hovered.name}</span>
+              <div className="absolute top-2 right-2 bg-card/95 backdrop-blur border rounded-lg px-3 py-1.5 text-sm shadow-sm pointer-events-none">
+                <span className="font-semibold">{hovered.name}</span>
                 {hovered.value != null && (
-                  <span className="ml-2 text-muted-foreground">{hovered.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  <span className="ml-2 text-muted-foreground tabular-nums">{fmtCompact(hovered.value)}</span>
                 )}
               </div>
             )}
-            <div className="flex items-center mt-1 text-xs text-muted-foreground">
-              <span className="tabular-nums">{vMin.toFixed(1)}</span>
-              <div className="flex-1 mx-3 h-2 rounded-full" style={{
-                background: "linear-gradient(to right, rgb(255, 210, 210), rgb(100, 150, 255))",
-              }} />
-              <span className="tabular-nums">{vMax.toFixed(1)}</span>
+            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+              <span className="tabular-nums">{fmtCompact(vMin)}</span>
+              <div className="relative flex-1 h-2.5 rounded-full" style={{ background: LEGEND_GRADIENT }}>
+                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-4 w-px bg-white/80" />
+              </div>
+              <span className="tabular-nums">{fmtCompact(vMax)}</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {currIndicator?.name ?? selectedIndicator} · {selectedYear ? `${selectedYear}` : "latest"} · {data.size} countries
