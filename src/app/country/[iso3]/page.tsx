@@ -60,8 +60,9 @@ type Entry = {
   rank: { rank: number; total: number } | null; trend: Trend; series: Array<{ year: number; value: number | null }>;
 };
 
-export default async function CountryPage({ params }: { params: Promise<{ iso3: string }> }) {
+export default async function CountryPage({ params, searchParams }: { params: Promise<{ iso3: string }>; searchParams: Promise<{ indicator?: string }> }) {
   const { iso3 } = await params;
+  const { indicator } = await searchParams;
   const code = iso3.toUpperCase();
 
   const [countries, allIndicators] = await Promise.all([
@@ -253,7 +254,7 @@ export default async function CountryPage({ params }: { params: Promise<{ iso3: 
 
         {/* Interactive trend vs India */}
         {trendIndicators.length > 0 && (
-          <CountryTrendCard country={code} countryName={country.name} indicators={trendIndicators} />
+          <CountryTrendCard country={code} countryName={country.name} indicators={trendIndicators} initialId={indicator} />
         )}
 
         {/* Category Panels */}

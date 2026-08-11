@@ -5,9 +5,11 @@ import * as d3 from "d3-geo";
 import { feature } from "topojson-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import { isHigherBetter } from "@/lib/rank-direction";
 
 type Props = {
-  indicators: Array<{ id: string; name: string; category: string }>;
+  indicators: Array<{ id: string; name: string; category: string; unit?: string | null; description?: string | null }>;
+  regions?: Record<string, string | null>;
 };
 
 /** topojson `id` is the numeric ISO-3166-1 code → ISO3 for linking/coloring.
@@ -70,6 +72,17 @@ const PASTEL_STOPS: Array<[number, number, number]> = [
   [221, 214, 254], // violet-200
 ];
 
+const CONTINENTS: Array<{ key: string; label: string; regions: string[] }> = [
+  { key: "world", label: "World", regions: [] },
+  { key: "south-asia", label: "South Asia", regions: ["South Asia"] },
+  { key: "east-asia", label: "East Asia & Pacific", regions: ["East Asia & Pacific"] },
+  { key: "europe", label: "Europe & Central Asia", regions: ["Europe & Central Asia"] },
+  { key: "mena", label: "Middle East & North Africa", regions: ["Middle East & North Africa"] },
+  { key: "africa", label: "Sub-Saharan Africa", regions: ["Sub-Saharan Africa"] },
+  { key: "lac", label: "Latin America & Caribbean", regions: ["Latin America & Caribbean"] },
+  { key: "north-america", label: "North America", regions: ["North America"] },
+];
+
 function pastelColor(t: number): string {
   const x = Math.max(0, Math.min(1, t)) * (PASTEL_STOPS.length - 1);
   const i = Math.min(Math.floor(x), PASTEL_STOPS.length - 2);
@@ -85,7 +98,7 @@ function fmtCompact(v: number): string {
   return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(v);
 }
 
-export function WorldMapCard({ indicators }: Props) {
+export function WorldMapCard({ indicators, regions }: Props) {
   const [selectedIndicator, setSelectedIndicator] = useState("gdp_current_usd");
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [data, setData] = useState<Map<string, number>>(new Map());
@@ -94,7 +107,9 @@ export function WorldMapCard({ indicators }: Props) {
   const [paths, setPaths] = useState<{ id: string; name: string; path: string; label: { x: number; y: number } | null }[]>([]);
   const [hovered, setHovered] = useState<{ name: string; value: number | null } | null>(null);
   const [yearsWithData, setYearsWithData] = useState<number[]>([]);
+  const [continent, setContinent] = useState("world");
   const geoLoaded = useRef(false);
+  const geoFeaturesRef = useRef<any[]>([]);
 
   const categories = useMemo(() => {
     const map = new Map<string, Array<{ id: string; name: string }>>();
@@ -107,6 +122,7 @@ export function WorldMapCard({ indicators }: Props) {
 
   const currIndicator = indicators.find((i) => i.id === selectedIndicator);
   const currentEvent = selectedYear ? HISTORICAL_EVENTS.find((e) => e.year === selectedYear) : null;
+  const continentRegions = CONTINENTS.find((c) => c.key === continent)?.regions ?? [];
 
   useEffect(() => {
     if (geoLoaded.current) return;
@@ -119,27 +135,49 @@ export function WorldMapCard({ indicators }: Props) {
         // Drop Antarctica + features without an id so fitSize produces a
         // properly proportioned world map instead of a tall white strip.
         const plotted = countries.features.filter((f: any) => f.id && f.id !== "010");
-        const projection = d3.geoMercator().fitSize([880, 420], { type: "FeatureCollection", features: plotted });
-        const geoGenerator = d3.geoPath(projection);
-        setPaths(
-          plotted.map((f: any) => ({
-            id: f.id,
-            name: f.properties.name,
-            path: geoGenerator(f) ?? "",
-            label: (() => {
-              const area = geoGenerator.area(f);
-              if (area < 14) return null;
-              const c = geoGenerator.centroid(f);
-              return { x: c[0], y: c[1] };
-            })(),
-          }))
-        );
+        geoFeaturesRef.current = plotted;
+        renderPaths(plotted);
       } catch {
         //
       }
     };
     loadGeo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Re-project country features with the current continent zoom, then
+   *  recompute SVG paths + label positions. */
+  const renderPaths = (features: any[], regionKey = continent) => {
+    const currentRegions = CONTINENTS.find((c) => c.key === regionKey)?.regions ?? [];
+    const filtered = currentRegions.length === 0
+      ? features
+      : features.filter((f: any) => {
+          const iso3 = NUM_ID_TO_ISO3[f.id];
+          if (!iso3) return false;
+          const region = regions?.[iso3];
+          return currentRegions.some((r) => region === r);
+        });
+    const projection = d3.geoMercator().fitSize([880, 420], { type: "FeatureCollection", features: filtered });
+    const geoGenerator = d3.geoPath(projection);
+    setPaths(
+      filtered.map((f: any) => ({
+        id: f.id,
+        name: f.properties.name,
+        path: geoGenerator(f) ?? "",
+        label: (() => {
+          const area = geoGenerator.area(f);
+          if (area < 14) return null;
+          const c = geoGenerator.centroid(f);
+          return { x: c[0], y: c[1] };
+        })(),
+      }))
+    );
+  };
+
+  const handleContinent = (key: string) => {
+    setContinent(key);
+    if (geoFeaturesRef.current.length > 0) renderPaths(geoFeaturesRef.current, key);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -207,6 +245,15 @@ export function WorldMapCard({ indicators }: Props) {
               <option value="">Latest</option>
               {yearsWithData.map((y) => (
                 <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <select
+              value={continent}
+              onChange={(e) => handleContinent(e.target.value)}
+              className="text-sm font-normal rounded-lg border border-input bg-transparent px-2 py-1"
+            >
+              {CONTINENTS.map((c) => (
+                <option key={c.key} value={c.key}>{c.label}</option>
               ))}
             </select>
             <label className="flex items-center gap-1.5 text-sm font-normal cursor-pointer select-none">
@@ -295,6 +342,16 @@ export function WorldMapCard({ indicators }: Props) {
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {currIndicator?.name ?? selectedIndicator} · {selectedYear ? `${selectedYear}` : "latest"} · {data.size} countries
+              {continent !== "world" && ` · zoomed to ${CONTINENTS.find((c) => c.key === continent)?.label}`}
+            </p>
+            {currIndicator?.description && (
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{currIndicator.description}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">
+              <span className="font-medium">How to read:</span>{" "}
+              {isHigherBetter(selectedIndicator) ? "darker = higher value (better)" : "darker = higher value (worse)"}{" "}
+              — grey = no data.
+              {currIndicator?.unit && <> Unit: <span className="font-medium capitalize">{currIndicator.unit}</span>.</>}
             </p>
           </div>
         )}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info, ExternalLink } from "lucide-react";
 import { TrendChart } from "@/components/dashboard/trend-chart";
+import { eventsForIndicator } from "@/lib/historical-events";
 
 type IndicatorOpt = { id: string; name: string; category: string; unit: string | null };
 
@@ -10,12 +11,16 @@ export function CountryTrendCard({
   country,
   countryName,
   indicators,
+  initialId,
 }: {
   country: string;
   countryName: string;
   indicators: IndicatorOpt[];
+  initialId?: string;
 }) {
-  const [selectedId, setSelectedId] = useState(indicators[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(
+    indicators.some((i) => i.id === initialId) ? initialId! : (indicators[0]?.id ?? ""),
+  );
   const [countrySeries, setCountrySeries] = useState<Array<{ year: number; value: number | null }>>([]);
   const [indiaSeries, setIndiaSeries] = useState<Array<{ year: number; value: number | null }>>([]);
   const [loading, setLoading] = useState(false);
@@ -61,6 +66,7 @@ export function CountryTrendCard({
     { name: countryName, data: countrySeries, color: "#3b82f6" },
     { name: "India", data: indiaSeries, color: "#f59e0b" },
   ];
+  const events = eventsForIndicator(selectedId, current?.category);
 
   return (
     <div className="rounded-lg border bg-card p-4">
@@ -96,6 +102,37 @@ export function CountryTrendCard({
       )}
       {!loading && !error && (
         <TrendChart title={current?.name ?? "Trend"} unit={current?.unit ?? undefined} series={series} height={320} />
+      )}
+
+      {!loading && !error && events.length > 0 && (
+        <div className="mt-3 rounded-lg border bg-muted/30 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Info className="h-3.5 w-3.5 text-violet-500" />
+            <span className="text-xs font-medium">What happened around these years — with sources</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {events.map((e) => (
+              <span
+                key={`${e.year}-${e.label}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs dark:bg-violet-900/20 dark:border-violet-800"
+                title={e.description}
+              >
+                <span className="font-semibold text-violet-700 dark:text-violet-300 tabular-nums">{e.year}</span>
+                <span className="font-medium">{e.label}</span>
+                <a
+                  href={e.source}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(ev) => ev.stopPropagation()}
+                  className="inline-flex items-center gap-0.5 text-blue-500 hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {e.sourceLabel}
+                </a>
+              </span>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

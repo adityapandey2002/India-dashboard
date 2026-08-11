@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { chat, type ChatMessage } from "@/lib/ai";
 import { query } from "@/lib/db/client";
 import { vectorSearch } from "@/lib/ai/vector-search";
+import { INDIA_EVENTS } from "@/lib/historical-events";
 
 const SYSTEM_PROMPT = `You are a data analyst for the "India in the World" dashboard. 
 Answer questions about global development indicators with a focus on India.
@@ -110,27 +111,28 @@ async function buildContext(question: string): Promise<ContextChunk[]> {
     }
   }
 
-  // 4. Historical events
-  if (lowerQ.includes("covid") || lowerQ.includes("pandemic") || lowerQ.includes("2020")) {
-    chunks.push({
-      id: "event_covid",
-      text: "COVID-19 pandemic (2020): Global economic contraction, supply chain disruption, accelerated digital adoption, health system stress.",
-      source: "historical_event",
-    });
-  }
-  if (lowerQ.includes("demonetization") || lowerQ.includes("2016")) {
-    chunks.push({
-      id: "event_demonetization",
-      text: "India demonetization (Nov 2016): Withdrawal of ₹500/₹1000 notes (86% of cash), short-term GDP dip, accelerated digital payments.",
-      source: "historical_event",
-    });
-  }
-  if (lowerQ.includes("liberalization") || lowerQ.includes("1991")) {
-    chunks.push({
-      id: "event_liberalization",
-      text: "India economic liberalization (1991): Ended License Raj, opened to FDI, devalued rupee, foundation of modern growth trajectory.",
-      source: "historical_event",
-    });
+  // 4. Historical events — matched from the events library (with proof URLs)
+  for (const ev of INDIA_EVENTS) {
+    const q = lowerQ;
+    const matches =
+      (q.includes("covid") || q.includes("pandemic")) && ev.label.includes("COVID") ||
+      (q.includes("demonetization") || q.includes("demonetisation") || q.includes("2016")) && ev.label.includes("Demonetization") ||
+      (q.includes("liberalization") || q.includes("liberalisation") || q.includes("1991")) && ev.label.includes("Liberalization") ||
+      (q.includes("jio") || q.includes("mobile data") || q.includes("internet boom")) && ev.label.includes("Jio") ||
+      (q.includes("gst") || q.includes("tax reform")) && ev.label.includes("GST") ||
+      (q.includes("aadhaar")) && ev.label.includes("Aadhaar") ||
+      (q.includes("paris") || q.includes("climate commitment") || q.includes("renewable")) && ev.label.includes("Paris") ||
+      (q.includes("swachh") || q.includes("sanitation")) && ev.label.includes("Swachh") ||
+      (q.includes("ayushman") || q.includes("health insurance")) && ev.label.includes("Ayushman") ||
+      (q.includes("education policy") || q.includes("nep")) && ev.label.includes("Education Policy") ||
+      (q.includes("mgnrega") || q.includes("rural employment")) && ev.label.includes("Employment");
+    if (matches) {
+      chunks.push({
+        id: `event_${ev.year}_${ev.label.replace(/\s+/g, "_").toLowerCase()}`,
+        text: `${ev.label} (${ev.year}): ${ev.description}`,
+        source: ev.source,
+      });
+    }
   }
 
   // 5. General country data

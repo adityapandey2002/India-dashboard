@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Send, Loader2, ChevronDown, ChevronRight, MessageSquare } from "lucide-react";
+import { Send, Loader2, ChevronDown, ChevronRight, MessageSquare, ExternalLink } from "lucide-react";
 
 type Message = {
   role: "user" | "assistant";
@@ -96,6 +96,16 @@ export default function ChatInterface() {
                       <div key={c.id} className="rounded bg-background/50 px-2 py-1 text-xs">
                         <span className="font-mono text-amber-600">{c.id}</span>
                         <span className="ml-2 text-muted-foreground">{c.source}</span>
+                        {c.source.startsWith("http") && (
+                          <a
+                            href={c.source}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 inline-flex items-center gap-0.5 text-blue-500 hover:underline"
+                          >
+                            open <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
                       </div>
                     ))}
                   </div>

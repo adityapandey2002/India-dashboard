@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { Globe2, TrendingUp, Database, Calendar, BookOpen, Heart, BarChart3, Leaf } from "lucide-react";
-import { StatCard } from "@/components/dashboard/stat-card";
+import { KpiGrid, type KpiCard } from "@/components/dashboard/kpi-grid";
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { WorldMapCard } from "@/components/dashboard/world-map-card";
 import { ScatterCard } from "@/components/dashboard/scatter-chart";
@@ -124,19 +124,21 @@ export default async function HomePage() {
   const indicatorsWithData = [...coverageMap.entries()].filter(([, c]) => c > 0).length;
   const pctCoverage = Math.round((indicatorsWithData / stats.totalIndicators) * 100);
 
-  const kpiCards = [
-    { label: "GDP (current US$)", value: fmtBig(gdp?.value), hint: gdp?.year ? `${gdp.year} · World Bank` : "", icon: Database, ...trend("gdp_current_usd") },
-    { label: "Global GDP Rank", value: indiaRank ? `#${indiaRank.rank}` : "\u2014", hint: indiaRank ? `${indiaRank.total} countries` : "", icon: TrendingUp },
-    { label: "Life Expectancy", value: fmtPlain(lifeExp?.value, 1), hint: lifeExp?.year ? `${lifeExp.year}y · WB+UNDP` : "", icon: Calendar, ...trend("life_expectancy") },
-    { label: "Internet Access", value: internet?.value != null ? `${internet.value.toFixed(0)}%` : "\u2014", hint: internet?.year ? `${internet.year} · WB` : "", icon: Globe2, ...trend("internet_penetration") },
-    { label: "HDI", value: hdi?.value != null ? hdi.value.toFixed(3) : "\u2014", hint: hdi?.year ? `${hdi.year} · UNDP` : "", icon: Globe2, ...trend("hdi") },
-    { label: "GNI per capita", value: gniCap?.value != null ? `$${gniCap.value.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "\u2014", hint: gniCap?.year ? `${gniCap.year} · UNDP` : "", icon: Database, ...trend("gni_per_capita") },
-    { label: "School (expected)", value: fmtPlain(schoolYrs?.value, 1), hint: schoolYrs?.year ? `${schoolYrs.year}y · UNDP` : "", icon: BookOpen, ...trend("expected_yrs_school") },
-    { label: "Maternal mortality", value: matMortal?.value != null ? `${matMortal.value.toFixed(0)}/100k` : "\u2014", hint: matMortal?.year ? `${matMortal.year} · WB` : "", icon: Heart, ...trend("maternal_mortality") },
-    { label: "CO₂ per capita", value: co2?.value != null ? `${co2.value.toFixed(2)}t` : "\u2014", hint: co2?.year ? `${co2.year} · OWID` : "", icon: Leaf, ...trend("co2_per_capita") },
-    { label: "UHC Coverage", value: uhc?.value != null ? `${uhc.value.toFixed(0)}%` : "\u2014", hint: uhc?.year ? `${uhc.year} · WHO` : "", icon: Heart, ...trend("uhc_idx") },
-    { label: "Pop. growth", value: fmtPlain(popGrowth?.value, 2), hint: popGrowth?.year ? `${popGrowth.year} · WB` : "", icon: BarChart3, ...trend("population_growth") },
-    { label: "Gini (inequality)", value: gini?.value != null ? gini.value.toFixed(1) : "\u2014", hint: gini?.year ? `${gini.year} · WB` : "", icon: BarChart3, ...trend("gini") },
+  const indicatorMeta = new Map(allIndicators.map((i) => [i.id, i]));
+
+  const kpiCards: KpiCard[] = [
+    { label: "GDP (current US$)", value: fmtBig(gdp?.value), hint: gdp?.year ? `${gdp.year} · World Bank` : "", icon: "Database", indicatorId: "gdp_current_usd", category: "economy", unit: "US$", description: indicatorMeta.get("gdp_current_usd")?.description ?? undefined, ...trend("gdp_current_usd") },
+    { label: "Global GDP Rank", value: indiaRank ? `#${indiaRank.rank}` : "\u2014", hint: indiaRank ? `${indiaRank.total} countries` : "", icon: "TrendingUp", indicatorId: "gdp_current_usd", category: "economy", unit: "US$", description: "India's position in the world GDP ranking for the latest year." },
+    { label: "Life Expectancy", value: fmtPlain(lifeExp?.value, 1), hint: lifeExp?.year ? `${lifeExp.year}y · WB+UNDP` : "", icon: "Calendar", indicatorId: "life_expectancy", category: "health", unit: "years", description: indicatorMeta.get("life_expectancy")?.description ?? undefined, ...trend("life_expectancy") },
+    { label: "Internet Access", value: internet?.value != null ? `${internet.value.toFixed(0)}%` : "\u2014", hint: internet?.year ? `${internet.year} · WB` : "", icon: "Globe2", indicatorId: "internet_penetration", category: "technology", unit: "% of population", description: indicatorMeta.get("internet_penetration")?.description ?? undefined, ...trend("internet_penetration") },
+    { label: "HDI", value: hdi?.value != null ? hdi.value.toFixed(3) : "\u2014", hint: hdi?.year ? `${hdi.year} · UNDP` : "", icon: "Globe2", indicatorId: "hdi", category: "development", unit: "index (0–1)", description: indicatorMeta.get("hdi")?.description ?? undefined, ...trend("hdi") },
+    { label: "GNI per capita", value: gniCap?.value != null ? `$${gniCap.value.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "\u2014", hint: gniCap?.year ? `${gniCap.year} · UNDP` : "", icon: "Database", indicatorId: "gni_per_capita", category: "economy", unit: "US$", description: indicatorMeta.get("gni_per_capita")?.description ?? undefined, ...trend("gni_per_capita") },
+    { label: "School (expected)", value: fmtPlain(schoolYrs?.value, 1), hint: schoolYrs?.year ? `${schoolYrs.year}y · UNDP` : "", icon: "BookOpen", indicatorId: "expected_yrs_school", category: "education", unit: "years", description: indicatorMeta.get("expected_yrs_school")?.description ?? undefined, ...trend("expected_yrs_school") },
+    { label: "Maternal mortality", value: matMortal?.value != null ? `${matMortal.value.toFixed(0)}/100k` : "\u2014", hint: matMortal?.year ? `${matMortal.year} · WB` : "", icon: "Heart", indicatorId: "maternal_mortality", category: "health", unit: "per 100k births", description: indicatorMeta.get("maternal_mortality")?.description ?? undefined, ...trend("maternal_mortality") },
+    { label: "CO₂ per capita", value: co2?.value != null ? `${co2.value.toFixed(2)}t` : "\u2014", hint: co2?.year ? `${co2.year} · OWID` : "", icon: "Leaf", indicatorId: "co2_per_capita", category: "environment", unit: "tonnes", description: indicatorMeta.get("co2_per_capita")?.description ?? undefined, ...trend("co2_per_capita") },
+    { label: "UHC Coverage", value: uhc?.value != null ? `${uhc.value.toFixed(0)}%` : "\u2014", hint: uhc?.year ? `${uhc.year} · WHO` : "", icon: "Heart", indicatorId: "uhc_idx", category: "health", unit: "index (0–100)", description: indicatorMeta.get("uhc_idx")?.description ?? undefined, ...trend("uhc_idx") },
+    { label: "Pop. growth", value: fmtPlain(popGrowth?.value, 2), hint: popGrowth?.year ? `${popGrowth.year} · WB` : "", icon: "BarChart3", indicatorId: "population_growth", category: "demographics", unit: "% per year", description: indicatorMeta.get("population_growth")?.description ?? undefined, ...trend("population_growth") },
+    { label: "Gini (inequality)", value: gini?.value != null ? gini.value.toFixed(1) : "\u2014", hint: gini?.year ? `${gini.year} · WB` : "", icon: "BarChart3", indicatorId: "gini", category: "society", unit: "index (0–100)", description: indicatorMeta.get("gini")?.description ?? undefined, ...trend("gini") },
   ];
 
   return (
@@ -164,15 +166,14 @@ export default async function HomePage() {
 
       <div className="mx-auto max-w-7xl space-y-8 px-6 py-8">
         {/* KPI grid */}
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-          {kpiCards.map((kpi) => (
-            <StatCard key={kpi.label} label={kpi.label} value={kpi.value} hint={kpi.hint} icon={<kpi.icon className="h-4 w-4 text-muted-foreground" />} trend={kpi.trend} trendLabel={kpi.trendLabel} />
-          ))}
-        </section>
+        <KpiGrid cards={kpiCards} />
 
         {/* World map */}
         <section>
-          <WorldMapCard indicators={allIndicators} />
+          <WorldMapCard
+            indicators={allIndicators}
+            regions={Object.fromEntries(countries.map((c) => [c.iso3, c.region]))}
+          />
         </section>
 
         {/* Scatter correlation */}
