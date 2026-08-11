@@ -65,7 +65,8 @@ export function WorldMapCard({ indicators }: Props) {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [data, setData] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(false);
-  const [paths, setPaths] = useState<{ id: string; name: string; path: string }[]>([]);
+  const [showLabels, setShowLabels] = useState(true);
+  const [paths, setPaths] = useState<{ id: string; name: string; path: string; label: { x: number; y: number } | null }[]>([]);
   const [hovered, setHovered] = useState<{ name: string; value: number | null } | null>(null);
   const [yearsWithData, setYearsWithData] = useState<number[]>([]);
   const geoLoaded = useRef(false);
@@ -100,6 +101,12 @@ export function WorldMapCard({ indicators }: Props) {
             id: f.id,
             name: f.properties.name,
             path: geoGenerator(f) ?? "",
+            label: (() => {
+              const area = geoGenerator.area(f);
+              if (area < 14) return null;
+              const c = geoGenerator.centroid(f);
+              return { x: c[0], y: c[1] };
+            })(),
           }))
         );
       } catch {
@@ -180,6 +187,15 @@ export function WorldMapCard({ indicators }: Props) {
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
+            <label className="flex items-center gap-1.5 text-sm font-normal cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showLabels}
+                onChange={(e) => setShowLabels(e.target.checked)}
+                className="accent-amber-500"
+              />
+              Labels
+            </label>
           </div>
         </CardTitle>
       </CardHeader>
@@ -213,6 +229,22 @@ export function WorldMapCard({ indicators }: Props) {
                   </a>
                 );
               })}
+              {showLabels && paths.map(({ name, label }, idx) =>
+                label ? (
+                  <text
+                    key={`lbl-${idx}`}
+                    x={label.x}
+                    y={label.y}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    pointerEvents="none"
+                    className="fill-foreground/80 select-none"
+                    style={{ fontSize: 4.2, fontWeight: 600, paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 1.4, strokeLinejoin: "round" }}
+                  >
+                    {name}
+                  </text>
+                ) : null
+              )}
             </svg>
             {hovered && (
               <div className="absolute bottom-2 left-2 bg-card border rounded-lg px-3 py-1.5 text-sm shadow-sm pointer-events-none">
