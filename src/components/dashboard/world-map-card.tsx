@@ -119,7 +119,7 @@ export function WorldMapCard({ indicators }: Props) {
         // Drop Antarctica + features without an id so fitSize produces a
         // properly proportioned world map instead of a tall white strip.
         const plotted = countries.features.filter((f: any) => f.id && f.id !== "010");
-        const projection = d3.geoMercator().fitSize([800, 450], { type: "FeatureCollection", features: plotted });
+        const projection = d3.geoMercator().fitSize([880, 420], { type: "FeatureCollection", features: plotted });
         const geoGenerator = d3.geoPath(projection);
         setPaths(
           plotted.map((f: any) => ({
@@ -231,15 +231,15 @@ export function WorldMapCard({ indicators }: Props) {
         {!loading && (
           <div className="relative">
             <div className="overflow-hidden rounded-xl border border-border/60 shadow-sm">
-              <svg viewBox="0 0 800 450" className="w-full h-auto" style={{ maxHeight: 400, display: "block" }}>
+              <svg viewBox="0 0 880 420" className="w-full h-auto" style={{ maxHeight: 400, display: "block" }}>
                 <defs>
-                  <linearGradient id="map-ocean" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#dbeafe" />
-                    <stop offset="55%" stopColor="#e0f2fe" />
+                  <linearGradient id="map-ocean" x1="1" y1="0" x2="0" y2="0">
+                    <stop offset="0%" stopColor="#e0f2fe" />
+                    <stop offset="60%" stopColor="#dbeafe" />
                     <stop offset="100%" stopColor="#f5f3ff" />
                   </linearGradient>
                 </defs>
-                <rect width="800" height="450" fill="url(#map-ocean)" />
+                <rect width="880" height="420" fill="url(#map-ocean)" />
                 {paths.map(({ id, name, path }, idx) => {
                   const iso3 = NUM_ID_TO_ISO3[id];
                   if (!iso3) return <path key={`${id}-${idx}`} d={path || undefined} fill="#f8fafc" stroke="#fff" strokeWidth={0.6} />;

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, BarChart, Bar, Cell,
@@ -20,8 +21,9 @@ type Props = {
   indicatorsByCategory: Record<string, Indicator[]>;
 };
 
-const DEFAULT_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"];
+const DEFAULT_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#a855f7", "#84cc16", "#06b6d4", "#e11d48"];
 const DEFAULT_COUNTRIES = ["IND", "USA", "CHN", "BRA", "ZAF"];
+const COUNT_OPTIONS = [3, 5, 8, 10, 15, 20];
 
 type SeriesPoint = { year: number; value: number };
 
