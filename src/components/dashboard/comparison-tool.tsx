@@ -39,18 +39,61 @@ function fmtValue(v: number | null, unit?: string | null): string {
 }
 
 export function CompareTool({ countries, indicatorsByCategory }: Props) {
+  const searchParams = useSearchParams();
   const [selectedCountries, setSelectedCountries] = useState<string[]>(DEFAULT_COUNTRIES);
-  const [selectedIndicator, setSelectedIndicator] = useState("gdp_current_usd");
+  const [selectedIndicator, setSelectedIndicator] = useState(() => searchParams.get("indicator") ?? "gdp_current_usd");
+  const [countryCount, setCountryCount] = useState(5);
   const [seriesData, setSeriesData] = useState<Record<string, SeriesPoint[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [insight, setInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
+  const [pickingTop, setPickingTop] = useState(false);
 
   const countryMap = new Map(countries.map((c) => [c.iso3, c.name]));
   const allIndicators = Object.values(indicatorsByCategory).flat();
   const currentIndicator = allIndicators.find((i) => i.id === selectedIndicator);
+
+  // On first mount, honor ?country= from links (e.g. country page "Compare" button)
+  useEffect(() => {
+    const urlCountry = searchParams.get("country");
+    if (urlCountry && countries.some((c) => c.iso3 === urlCountry)) {
+      setSelectedCountries((prev) => (prev.includes(urlCountry) ? prev : [...prev, urlCountry]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // When indicator or count changes, auto-pick top-N countries for that indicator.
+  useEffect(() => {
+    let cancelled = false;
+    const urlCountry = searchParams.get("country");
+    const pickTop = async () => {
+      setPickingTop(true);
+      try {
+        const res = await fetch(`/api/indicators/leaderboard?indicator=${selectedIndicator}&limit=${countryCount}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const rows = (json.data ?? json.leaderboard ?? []) as Array<{ iso3?: string; country_iso3?: string }>;
+        if (cancelled) return;
+        const picked = rows
+          .map((r) => r.iso3 ?? r.country_iso3 ?? "")
+          .filter((iso3) => iso3 && countries.some((c) => c.iso3 === iso3));
+        if (!picked.includes("IND")) picked.unshift("IND");
+        const withUrlCountry = urlCountry && !picked.includes(urlCountry)
+          ? [urlCountry, ...picked]
+          : picked;
+        setSelectedCountries(Array.from(new Set(withUrlCountry)).slice(0, countryCount));
+      } catch {
+        // keep current selection
+      } finally {
+        if (!cancelled) setPickingTop(false);
+      }
+    };
+    pickTop();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIndicator, countryCount]);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,8 +199,9 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
       {/* Controls */}
       <Card>
         <CardContent className="p-5 space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-2 block">Select countries</label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium mb-2 block">Select countries</label>
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
@@ -193,7 +237,7 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
             <p className="text-xs text-muted-foreground mt-2">
               {selectedCountries.length} selected &middot; {countries.length} total
             </p>
-          </div>
+            </div>
           <div>
             <label className="text-sm font-medium mb-2 block">Select indicator</label>
             <select
@@ -211,6 +255,26 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                 </optgroup>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Number of countries to compare
+            </label>
+            <select
+              value={countryCount}
+              onChange={(e) => setCountryCount(parseInt(e.target.value, 10))}
+              className="w-full sm:w-40 rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
+            >
+              {COUNT_OPTIONS.map((n) => (
+                <option key={n} value={n}>{n} countries</option>
+              ))}
+            </select>
+            {pickingTop && (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Picking top {countryCount} countries for this indicator (India always included)...
+              </p>
+            )}
+            </div>
           </div>
         </CardContent>
       </Card>
