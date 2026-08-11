@@ -143,9 +143,6 @@ async function buildContext(question: string): Promise<ContextChunk[]> {
   // 4. Historical events — matched from the events library (with proof URLs)
   chunks.push(...eventChunksFor(question));
 
-  return chunks.slice(0, 50);
-}
-
   // 5. General country data
   const countryMatches = lowerQ.match(/\b(usa|china|brazil|south africa|japan|germany|france|uk|russia|india)\b/g);
   if (countryMatches) {
