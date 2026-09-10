@@ -10,6 +10,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { fmtValue } from "@/lib/format";
 
 type IndicatorOpt = { id: string; name: string; category: string };
 
@@ -32,15 +33,6 @@ type RankPayload = {
   history: HistoryPoint[];
   names: Record<string, string>;
 };
-
-function fmtValue(v: number, unit: string | null): string {
-  if (Math.abs(v) >= 1e12) return `${(v / 1e12).toFixed(2)}T${unit ? ` ${unit}` : ""}`;
-  if (Math.abs(v) >= 1e9)  return `${(v / 1e9).toFixed(2)}B${unit ? ` ${unit}` : ""}`;
-  if (Math.abs(v) >= 1e6)  return `${(v / 1e6).toFixed(2)}M${unit ? ` ${unit}` : ""}`;
-  if (Math.abs(v) >= 1e3)  return `${(v / 1e3).toFixed(1)}k${unit ? ` ${unit}` : ""}`;
-  if (Number.isInteger(v)) return `${v.toLocaleString()}${unit ? ` ${unit}` : ""}`;
-  return `${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}${unit ? ` ${unit}` : ""}`;
-}
 
 type SortKey = "rank" | "value" | "year" | "name";
 

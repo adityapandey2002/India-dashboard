@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Calculator, ExternalLink, Info, Globe, TrendingUp, TrendingDown, Minus, Calendar, Database, BarChart3, type LucideIcon } from "lucide-react";
+import { ArrowLeft, BookOpen, Calculator, ExternalLink, Info, Globe, TrendingUp, TrendingDown, Minus, Calendar, Database, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendChart } from "@/components/dashboard/trend-chart";
@@ -8,25 +8,10 @@ import { getAllIndicators, getAllCountries, getLatestSnapshot, getIndicatorSerie
 import { getGuide } from "@/lib/indicator-guides";
 import { eventsForIndicator } from "@/lib/historical-events";
 import { isHigherBetter } from "@/lib/rank-direction";
+import { fmtValue } from "@/lib/format";
 
 const INDIA = "IND";
 const COMPARE_COUNTRIES = ["IND", "USA", "CHN", "BRA", "ZAF"];
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  economy: TrendingUp, society: Globe, governance: Globe, technology: TrendingUp,
-  education: BookOpen, healthcare: TrendingUp, environment: TrendingUp,
-  safety: Globe, equality: Globe, digital_gov: Globe,
-};
-
-function fmtValue(v: number | null, unit?: string | null): string {
-  if (v == null) return "—";
-  let s: string;
-  if (Math.abs(v) >= 1e12) s = `${(v / 1e12).toFixed(2)}T`;
-  else if (Math.abs(v) >= 1e9) s = `${(v / 1e9).toFixed(2)}B`;
-  else if (Math.abs(v) >= 1e6) s = `${(v / 1e6).toFixed(2)}M`;
-  else if (Math.abs(v) >= 1e3) s = `${(v / 1e3).toFixed(1)}k`;
-  else s = v.toFixed(unit === "%" ? 1 : 2);
-  return unit ? `${s} ${unit}` : s;
-}
 
 export default async function IndicatorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -42,8 +27,12 @@ export default async function IndicatorPage({ params }: { params: Promise<{ id: 
   ]);
 
   const snap = snapshot[id];
+  const guide = getGuide(indicator);
+  const events = eventsForIndicator(id, indicator.category);
+  const higherBetter = isHigherBetter(id);
+
   const [rank, series] = await Promise.all([
-    snap?.year ? getRankInYear(id, INDIA, snap.year) : Promise.resolve(null),
+    snap?.year ? getRankInYear(id, INDIA, snap.year, higherBetter) : Promise.resolve(null),
     Promise.all(COMPARE_COUNTRIES.map(async (iso3) => ({
       name: iso3 === INDIA ? "India" : (countries.find((c) => c.iso3 === iso3)?.name ?? iso3),
       data: (await getIndicatorSeries(iso3, id)).filter((p) => p.value != null).map((p) => ({ year: p.year, value: p.value! })),
@@ -51,27 +40,23 @@ export default async function IndicatorPage({ params }: { params: Promise<{ id: 
   ]);
 
   const year = latestYear ?? snap?.year ?? null;
-  const leaderboard = year ? await getLeaderboard(id, year, 10) : [];
+  const leaderboard = year ? await getLeaderboard(id, year, 10, higherBetter) : [];
   const countryByIso = new Map(countries.map((c) => [c.iso3, c.name]));
   const indiaRow = leaderboard.find((r) => r.iso3 === INDIA);
-
-  const guide = getGuide(indicator);
-  const events = eventsForIndicator(id, indicator.category);
-  const higherBetter = isHigherBetter(id);
 
   // Trend: last value vs previous year
   const indiaSeries = series.find((s) => s.name === "India")?.data ?? [];
   const lastPt = indiaSeries[indiaSeries.length - 1];
   const prevPt = indiaSeries[indiaSeries.length - 2];
   let trendLabel: string | null = null;
-  let trendUp = false;
+  let trendPct: number | null = null;
+  let improving = false;
   if (lastPt && prevPt && prevPt.value !== 0) {
     const pct = ((lastPt.value - prevPt.value) / Math.abs(prevPt.value)) * 100;
-    trendUp = pct >= 0;
-    trendLabel = `${trendUp ? "+" : ""}${pct.toFixed(1)}% (vs ${prevPt.year})`;
+    trendPct = pct;
+    improving = higherBetter ? pct >= 0 : pct < 0;
+    trendLabel = `${pct > 0 ? "+" : ""}${pct.toFixed(1)}% (vs ${prevPt.year})`;
   }
-
-  const Icon = CATEGORY_ICONS[indicator.category] ?? Globe;
 
   return (
     <main className="min-h-screen bg-background">
@@ -120,10 +105,14 @@ export default async function IndicatorPage({ params }: { params: Promise<{ id: 
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Recent trend</p>
               <div className="mt-1 flex items-center gap-2">
-                {trendLabel ? (
+                {trendPct != null ? (
                   <>
-                    {trendUp ? <TrendingUp className="h-5 w-5 text-emerald-600" /> : <TrendingDown className="h-5 w-5 text-red-500" />}
-                    <span className={`text-lg font-semibold tabular-nums ${trendUp ? "text-emerald-600" : "text-red-500"}`}>{trendLabel}</span>
+                    {trendPct >= 0 ? (
+                      <TrendingUp className={`h-5 w-5 ${improving ? "text-emerald-600" : "text-red-500"}`} />
+                    ) : (
+                      <TrendingDown className={`h-5 w-5 ${improving ? "text-emerald-600" : "text-red-500"}`} />
+                    )}
+                    <span className={`text-lg font-semibold tabular-nums ${improving ? "text-emerald-600" : "text-red-500"}`}>{trendLabel}</span>
                   </>
                 ) : (
                   <Minus className="h-5 w-5 text-muted-foreground" />

@@ -82,16 +82,15 @@ export function ExploreClient({
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((c) => (
-          <Link
+          <div
             key={c.indicatorId}
-            href={`/indicator/${c.indicatorId}`}
             className="group rounded-lg border p-4 transition-colors hover:border-amber-400 hover:bg-amber-50/50 dark:hover:border-amber-600 dark:hover:bg-amber-950/20"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate font-medium group-hover:text-amber-700 dark:group-hover:text-amber-300">
+                <Link href={`/indicator/${c.indicatorId}`} className="block truncate font-medium group-hover:text-amber-700 dark:group-hover:text-amber-300">
                   {c.indicatorName}
-                </p>
+                </Link>
                 <p className="mt-0.5 text-xs text-muted-foreground">{c.indicatorId}</p>
               </div>
               {hasData(c) ? (
@@ -117,13 +116,10 @@ export function ExploreClient({
               )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground capitalize">Source: {c.source}</p>
-            <p
-              className="mt-1 text-xs text-blue-500"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <p className="mt-1 text-xs text-blue-500">
               <Link href={`/compare?indicator=${c.indicatorId}`} className="hover:underline">Compare countries →</Link>
             </p>
-          </Link>
+          </div>
         ))}
       </div>
 

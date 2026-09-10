@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Search, Sparkles, X } from "lucide-react";
 import { isHigherBetter } from "@/lib/rank-direction";
+import { fmtValue } from "@/lib/format";
 
 type Country = { iso3: string; name: string; region: string | null };
 type Indicator = { id: string; name: string; category: string; unit: string | null };
@@ -27,17 +28,6 @@ const DEFAULT_COUNTRIES = ["IND", "USA", "CHN", "BRA", "ZAF"];
 const COUNT_OPTIONS = [3, 5, 8, 10, 15, 20];
 
 type SeriesPoint = { year: number; value: number };
-
-function fmtValue(v: number | null, unit?: string | null): string {
-  if (v == null) return "—";
-  let s: string;
-  if (Math.abs(v) >= 1e12) s = `${(v / 1e12).toFixed(2)}T`;
-  else if (Math.abs(v) >= 1e9) s = `${(v / 1e9).toFixed(2)}B`;
-  else if (Math.abs(v) >= 1e6) s = `${(v / 1e6).toFixed(2)}M`;
-  else if (Math.abs(v) >= 1e3) s = `${(v / 1e3).toFixed(1)}k`;
-  else s = v.toFixed(unit === "%" ? 1 : 0);
-  return unit ? `${s} ${unit}` : s;
-}
 
 export function CompareTool({ countries, indicatorsByCategory }: Props) {
   const searchParams = useSearchParams();

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Plain-language guides for indicators: what it is (simple words),
  * how it is calculated, and where to learn more.
  * Indicators without a curated guide fall back to a template built from the

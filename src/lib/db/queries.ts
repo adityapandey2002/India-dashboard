@@ -64,10 +64,10 @@ export async function getLatestSnapshot(iso3: string): Promise<Record<string, { 
   return out;
 }
 
-export async function getRankInYear(indicatorId: string, iso3: string, year: number): Promise<{ rank: number; total: number } | null> {
+export async function getRankInYear(indicatorId: string, iso3: string, year: number, higherBetter = true): Promise<{ rank: number; total: number } | null> {
   const rows = await query<{ rank: number; total: number }>(
     `WITH ranked AS (
-       SELECT country_iso3, RANK() OVER (ORDER BY value DESC) AS rank
+       SELECT country_iso3, RANK() OVER (ORDER BY value ${higherBetter ? "DESC" : "ASC"}) AS rank
        FROM data_points
        WHERE indicator_id = ? AND year = ? AND value IS NOT NULL
      )
@@ -120,12 +120,12 @@ export async function getLatestRanks(
   }));
 }
 
-export async function getLeaderboard(indicatorId: string, year: number, limit = 30): Promise<Array<{ iso3: string; value: number | null }>> {
+export async function getLeaderboard(indicatorId: string, year: number, limit = 30, higherBetter = true): Promise<Array<{ iso3: string; value: number | null }>> {
   const rows = await query<{ country_iso3: string; value: number | null }>(
     `SELECT country_iso3, value
      FROM data_points
      WHERE indicator_id = ? AND year = ? AND value IS NOT NULL
-     ORDER BY value DESC
+     ORDER BY value ${higherBetter ? "DESC" : "ASC"}
      LIMIT ?`,
     [indicatorId, year, limit],
   );

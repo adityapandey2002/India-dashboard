@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Globe, Building2, Users, Shield, Zap, BookOpen, Stethoscope, Leaf, Heart, ArrowUpRight, ArrowDownRight, Minus, type LucideIcon } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { fmtValue } from "@/lib/format";
 
 const ICONS: Record<string, LucideIcon> = {
   economy: Building2,
@@ -40,17 +41,6 @@ type Section = {
   entries: Entry[];
 };
 
-function fmtValue(v: number | null, unit?: string | null): string {
-  if (v == null) return "—";
-  let s: string;
-  if (Math.abs(v) >= 1e12) s = `${(v / 1e12).toFixed(2)}T`;
-  else if (Math.abs(v) >= 1e9) s = `${(v / 1e9).toFixed(2)}B`;
-  else if (Math.abs(v) >= 1e6) s = `${(v / 1e6).toFixed(2)}M`;
-  else if (Math.abs(v) >= 1e3) s = `${(v / 1e3).toFixed(1)}k`;
-  else s = v.toFixed(unit === "%" ? 1 : 0);
-  return unit ? `${s} ${unit}` : s;
-}
-
 function TrendIcon({ kind, className }: { kind: "up" | "down" | "flat"; className: string }) {
   if (kind === "up") return <ArrowUpRight className={className} />;
   if (kind === "down") return <ArrowDownRight className={className} />;
@@ -76,42 +66,41 @@ export function ReportCardSections({ sections }: { sections: Section[] }) {
             <button
               type="button"
               onClick={() => toggle(category)}
-              className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+              className="w-full text-left bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer px-6 py-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               aria-expanded={isOpen}
+              aria-controls={`report-section-${category}`}
             >
-              <CardHeader className="bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">
-                <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-2 text-lg">
-                    <Icon className="h-5 w-5 text-amber-500" />
-                    <span className="capitalize">{category.replace(/_/g, " ")}</span>
-                    {score != null && gradeLetter && (
-                      <Badge variant="outline" className={`ml-1 ${gradeColor ?? ""}`}>
-                        {gradeLetter} · {score.toFixed(0)}
-                      </Badge>
-                    )}
-                    <span className="text-xs font-normal text-muted-foreground">
-                      {entries.length} indicator{entries.length !== 1 ? "s" : ""}
+              <span className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="flex items-center gap-2 text-lg font-semibold">
+                  <Icon className="h-5 w-5 text-amber-500" />
+                  <span className="capitalize">{category.replace(/_/g, " ")}</span>
+                  {score != null && gradeLetter && (
+                    <Badge variant="outline" className={`ml-1 ${gradeColor ?? ""}`}>
+                      {gradeLetter} · {score.toFixed(0)}
+                    </Badge>
+                  )}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {entries.length} indicator{entries.length !== 1 ? "s" : ""}
+                  </span>
+                </span>
+                <span className="flex items-center gap-3">
+                  {score != null && (
+                    <span className="flex items-center gap-2 text-sm">
+                      <span className="text-xs font-medium text-muted-foreground">Score</span>
+                      <span className="h-2 w-40 overflow-hidden rounded-full bg-muted">
+                        <span
+                          className={`block h-full rounded-full ${score >= 55 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500"}`}
+                          style={{ width: `${Math.min(100, score)}%` }}
+                        />
+                      </span>
                     </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {score != null && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-xs font-medium text-muted-foreground">Score</span>
-                        <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className={`h-full rounded-full ${score >= 55 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500"}`}
-                            style={{ width: `${Math.min(100, score)}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                  </div>
-                </CardTitle>
-              </CardHeader>
+                  )}
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                </span>
+              </span>
             </button>
             {isOpen && (
-              <CardContent className="space-y-3 p-6">
+              <CardContent id={`report-section-${category}`} role="region" className="space-y-3 p-6">
                 {entries.map((entry) => {
                   const rankColor = entry.rank !== null
                     ? entry.rank <= Math.ceil((entry.total ?? 100) * 0.1) ? "text-green-600"
@@ -127,7 +116,7 @@ export function ReportCardSections({ sections }: { sections: Section[] }) {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-base group-hover:text-amber-700 hover:text-amber-700 transition-colors">{entry.name}</span>
+                          <span className="font-medium text-base hover:text-amber-700 transition-colors">{entry.name}</span>
                           <Badge variant="secondary" className="text-xs">{entry.unit ?? "index"}</Badge>
                           {entry.year && <span className="text-xs text-muted-foreground">({entry.year})</span>}
                         </div>

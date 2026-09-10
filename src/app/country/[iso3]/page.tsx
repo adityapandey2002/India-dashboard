@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, ArrowDownRight, Minus, Globe, Database, BarChart3, Calendar, Building2, Users, Shield, Zap, BookOpen, Stethoscope, Leaf, Heart, ArrowLeft, Trophy, AlertTriangle, type LucideIcon } from "lucide-react";
 import { getAllIndicators, getAllCountries, getLatestSnapshot, getCountryHistory, getLatestRanks } from "@/lib/db/queries";
 import { indicatorScore, average, gradeFor, prevValueInSeries } from "@/lib/report-card";
+import { fmtValue } from "@/lib/format";
 import { CountryRadar } from "@/components/dashboard/country-radar";
 import { CountryTrendCard } from "@/components/dashboard/country-trend-card";
 
@@ -30,17 +31,6 @@ function Sparkline({ data }: { data: { year: number; value: number | null }[] })
       <path d={d} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
-}
-
-function fmtValue(v: number | null, unit?: string | null): string {
-  if (v == null) return "\u2014";
-  let s: string;
-  if (Math.abs(v) >= 1e12) s = `${(v / 1e12).toFixed(2)}T`;
-  else if (Math.abs(v) >= 1e9) s = `${(v / 1e9).toFixed(2)}B`;
-  else if (Math.abs(v) >= 1e6) s = `${(v / 1e6).toFixed(2)}M`;
-  else if (Math.abs(v) >= 1e3) s = `${(v / 1e3).toFixed(1)}k`;
-  else s = v.toFixed(unit === "%" ? 1 : 2);
-  return unit ? `${s} ${unit}` : s;
 }
 
 type Trend = { icon: LucideIcon; color: string; label: string } | null;
