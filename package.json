@@ -47,6 +47,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
@@ -62,9 +63,11 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "jsdom": "^29.1.1",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
     "typescript": "^5",
+    "vercel": "^59.16.0",
     "vitest": "^4.1.10"
   }
 }

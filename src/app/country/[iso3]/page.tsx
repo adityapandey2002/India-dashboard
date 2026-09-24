@@ -270,9 +270,8 @@ export default async function CountryPage({ params, searchParams }: { params: Pr
               </div>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {entries.map((entry) => (
-                  <Link
+                  <div
                     key={entry.id}
-                    href={`/compare?indicator=${entry.id}`}
                     className="group rounded-lg border p-4 transition-colors hover:border-amber-400 hover:bg-amber-50/50 dark:hover:border-amber-600 dark:hover:bg-amber-950/20"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -317,7 +316,7 @@ export default async function CountryPage({ params, searchParams }: { params: Pr
                         {entry.series.length} pts
                       </span>
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             </section>

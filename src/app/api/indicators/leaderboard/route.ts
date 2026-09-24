@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLeaderboard, getLatestYear } from "@/lib/db/queries";
+import { isHigherBetter } from "@/lib/rank-direction";
 import { query } from "@/lib/db/client";
 
 export async function GET(req: NextRequest) {
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
   const year = yearParam ? parseInt(yearParam, 10) : (await getLatestYear(indicatorId)) ?? new Date().getFullYear();
   const limit = limitParam ? parseInt(limitParam, 10) : 30;
 
-  const data = await getLeaderboard(indicatorId, year, limit);
+  const data = await getLeaderboard(indicatorId, year, limit, isHigherBetter(indicatorId));
   const years = await query<{ yr: number }>(
     `SELECT DISTINCT year AS yr FROM data_points
      WHERE indicator_id = ? AND value IS NOT NULL

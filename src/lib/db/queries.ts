@@ -1,4 +1,5 @@
 import { query } from "./client";
+import { isHigherBetter } from "@/lib/rank-direction";
 import { rowToDataPoint, rowToIndicator, type DataPoint, type Indicator } from "./types";
 
 export async function getAllIndicators(): Promise<Indicator[]> {
@@ -82,7 +83,7 @@ export async function getRankInYear(indicatorId: string, iso3: string, year: num
 /**
  * Batch: for each country+indicator, the rank of that country's OWN latest value
  * among all countries in the same indicator/year. One round-trip instead of one
- * per indicator. Ranks are compared highest-value-wins (rank 1 = best).
+ * per indicator. Direction-aware: for lower-is-better indicators rank 1 = lowest value.
  */
 export async function getLatestRanks(
   indicatorIds: string[],
@@ -91,6 +92,11 @@ export async function getLatestRanks(
   if (indicatorIds.length === 0 || iso3s.length === 0) return [];
   const isoPlaceholders = iso3s.map(() => "?").join(", ");
   const indPlaceholders = indicatorIds.map(() => "?").join(", ");
+  const lowerBetterIds = indicatorIds.filter((id) => !isHigherBetter(id));
+  const lowerBetterPlaceholders = lowerBetterIds.map(() => "?").join(", ");
+  const orderExpr = lowerBetterIds.length > 0
+    ? `(CASE WHEN l.indicator_id IN (${lowerBetterPlaceholders}) THEN l.value ELSE -l.value END) ASC`
+    : `l.value DESC`;
   const rows = await query<{ indicator_id: string; country_iso3: string; year: number; rank: number | string; total: number | string }>(
     `WITH latest AS (
        SELECT dp.indicator_id, dp.country_iso3, dp.value, dp.year,
@@ -100,7 +106,7 @@ export async function getLatestRanks(
      ),
      ranked AS (
        SELECT l.indicator_id, l.country_iso3, l.year,
-              RANK() OVER (PARTITION BY l.indicator_id, l.year ORDER BY l.value DESC) AS rank,
+              RANK() OVER (PARTITION BY l.indicator_id, l.year ORDER BY ${orderExpr}) AS rank,
               COUNT(*) OVER (PARTITION BY l.indicator_id, l.year) AS total
        FROM latest l
        WHERE l.rn = 1
@@ -109,7 +115,7 @@ export async function getLatestRanks(
      FROM ranked
      WHERE country_iso3 IN (${isoPlaceholders})
        AND indicator_id IN (${indPlaceholders})`,
-    [...iso3s, ...indicatorIds],
+    [...lowerBetterIds, ...iso3s, ...indicatorIds],
   );
   return rows.map((r) => ({
     indicatorId: r.indicator_id,
