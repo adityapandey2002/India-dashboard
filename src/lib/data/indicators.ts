@@ -77,6 +77,8 @@ export const INDICATORS: IndicatorSeed[] = [
   { id: "scientific_articles",  name: "Scientific & technical journal articles", category: "technology", source: "world_bank", sourceId: "IP.JRN.ARTC.SC", unit: "count",        description: "Number of published scientific articles",         freq: "annual" },
   { id: "researchers_in_rd",    name: "Researchers in R&D (per million)", category: "technology", source: "world_bank", sourceId: "SP.POP.SCIE.RD.P6", unit: "per million",  description: "Number of researchers in R&D per million people",  freq: "annual" },
   { id: "patent_app_nonres",    name: "Patent applications (non-residents)", category: "technology", source: "world_bank", sourceId: "IP.PAT.NRES",     unit: "count",        description: "Patent applications filed by non-residents",      freq: "annual" },
+  { id: "patents_per_million",  name: "Patent applications per million", category: "technology", source: "owid",       sourceId: "patent-applications-per-million",  unit: "per million", description: "Patent applications filed per million people (OWID)", freq: "annual" },
+  { id: "innovation_idx",        name: "Global Innovation Index",        category: "technology", source: "wipo",       sourceId: "GII",                    unit: "0-100",        description: "WIPO Global Innovation Index score",                 freq: "annual" },
 
   // Education
   { id: "education_idx",        name: "Education Index",              category: "education",  source: "undp",       sourceId: "EDUCATION_IDX",         unit: "0-1",          description: "Mean years of schooling + expected years",        freq: "annual" },

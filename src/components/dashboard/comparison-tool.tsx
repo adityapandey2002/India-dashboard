@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Search, Sparkles, X } from "lucide-react";
 import { isHigherBetter } from "@/lib/rank-direction";
-import { fmtValue } from "@/lib/format";
+import { fmtCompact, fmtValue } from "@/lib/format";
+import { FlowChips } from "@/components/ui/flow-chips";
 
 type Country = { iso3: string; name: string; region: string | null };
 type Indicator = { id: string; name: string; category: string; unit: string | null };
@@ -25,15 +26,21 @@ type Props = {
 
 const DEFAULT_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#a855f7", "#84cc16", "#06b6d4", "#e11d48"];
 const DEFAULT_COUNTRIES = ["IND", "USA", "CHN", "BRA", "ZAF"];
-const COUNT_OPTIONS = [3, 5, 8, 10, 15, 20];
+/** How many top-ranked countries are auto-selected when the indicator changes. */
+const TOP_COUNTRY_COUNT = 5;
 
 type SeriesPoint = { year: number; value: number };
 
 export function CompareTool({ countries, indicatorsByCategory }: Props) {
   const searchParams = useSearchParams();
-  const [selectedCountries, setSelectedCountries] = useState<string[]>(DEFAULT_COUNTRIES);
+  // On first render, honor ?country= from links (e.g. the country page "Compare" button)
+  const [selectedCountries, setSelectedCountries] = useState<string[]>(() => {
+    const urlCountry = searchParams.get("country");
+    return urlCountry && countries.some((c) => c.iso3 === urlCountry)
+      ? Array.from(new Set([...DEFAULT_COUNTRIES, urlCountry]))
+      : DEFAULT_COUNTRIES;
+  });
   const [selectedIndicator, setSelectedIndicator] = useState(() => searchParams.get("indicator") ?? "gdp_current_usd");
-  const [countryCount, setCountryCount] = useState(5);
   const [seriesData, setSeriesData] = useState<Record<string, SeriesPoint[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,32 +48,40 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
   const [insightLoading, setInsightLoading] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
   const [pickingTop, setPickingTop] = useState(false);
+  // Timestamp of the last manual chip click — lets an in-flight auto-pick know it
+  // must not overwrite a choice the user just made.
+  const lastUserEditRef = useRef(0);
+  const chipRowRef = useRef<HTMLDivElement>(null);
 
   const countryMap = new Map(countries.map((c) => [c.iso3, c.name]));
   const allIndicators = Object.values(indicatorsByCategory).flat();
   const currentIndicator = allIndicators.find((i) => i.id === selectedIndicator);
 
-  // On first mount, honor ?country= from links (e.g. country page "Compare" button)
-  useEffect(() => {
-    const urlCountry = searchParams.get("country");
-    if (urlCountry && countries.some((c) => c.iso3 === urlCountry)) {
-      setSelectedCountries((prev) => (prev.includes(urlCountry) ? prev : [...prev, urlCountry]));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Chip row items are recomputed only when the search text (or data) changes,
+  // so chart/loading re-renders don't reallocate 217 entries.
+  const countryChipItems = useMemo(
+    () =>
+      countries
+        .filter((c) => !countrySearch || c.name.toLowerCase().includes(countrySearch.toLowerCase()))
+        .map((c) => ({ value: c.iso3, label: c.name })),
+    [countries, countrySearch],
+  );
 
-  // When indicator or count changes, auto-pick top-N countries for that indicator.
+  // When the indicator changes, auto-pick the top-N countries for it.
   useEffect(() => {
     let cancelled = false;
+    const startedAt = Date.now();
     const urlCountry = searchParams.get("country");
     const pickTop = async () => {
       setPickingTop(true);
       try {
-        const res = await fetch(`/api/indicators/leaderboard?indicator=${selectedIndicator}&limit=${countryCount}`);
+        const res = await fetch(`/api/indicators/leaderboard?indicator=${selectedIndicator}&limit=${TOP_COUNTRY_COUNT}`);
         if (!res.ok) return;
         const json = await res.json();
         const rows = (json.data ?? json.leaderboard ?? []) as Array<{ iso3?: string; country_iso3?: string }>;
         if (cancelled) return;
+        // The user clicked a chip while we were fetching: their pick wins.
+        if (lastUserEditRef.current > startedAt) return;
         const picked = rows
           .map((r) => r.iso3 ?? r.country_iso3 ?? "")
           .filter((iso3) => iso3 && countries.some((c) => c.iso3 === iso3));
@@ -74,7 +89,7 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
         const withUrlCountry = urlCountry && !picked.includes(urlCountry)
           ? [urlCountry, ...picked]
           : picked;
-        setSelectedCountries(Array.from(new Set(withUrlCountry)).slice(0, countryCount));
+        setSelectedCountries(Array.from(new Set(withUrlCountry)).slice(0, TOP_COUNTRY_COUNT));
       } catch {
         // keep current selection
       } finally {
@@ -84,7 +99,7 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
     pickTop();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedIndicator, countryCount]);
+  }, [selectedIndicator]);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,11 +131,19 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
     return () => { cancelled = true; };
   }, [selectedCountries, selectedIndicator]);
 
-  const toggleCountry = (iso3: string) => {
-    setSelectedCountries((prev) =>
-      prev.includes(iso3) ? prev.filter((c) => c !== iso3) : [...prev, iso3],
-    );
-  };
+  const toggleCountry = useCallback(
+    (iso3: string) => {
+      lastUserEditRef.current = Date.now();
+      const isSelecting = !selectedCountries.includes(iso3);
+      setSelectedCountries((prev) =>
+        prev.includes(iso3) ? prev.filter((c) => c !== iso3) : [...prev, iso3],
+      );
+      // Selected chips flow to the top of the scrollable row — bring them into
+      // view before the commit, so motion's FLIP measures the same screen space.
+      if (isSelecting) chipRowRef.current?.scrollTo({ top: 0 });
+    },
+    [selectedCountries],
+  );
 
   const chartData = (() => {
     const years = new Set<number>();
@@ -151,18 +174,11 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
         .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
     : [];
 
-  // Radar chart data: normalize values to 0-100 scale for comparison
+  // Radar chart data: one raw value per country for the latest year
   const radarCountries = selectedCountries.filter((iso3) => seriesData[iso3]?.some((p) => p.year === latestYear));
   const radarData = radarCountries.map((iso3) => {
     const val = seriesData[iso3]?.find((p) => p.year === latestYear)?.value ?? 0;
     return { name: countryMap.get(iso3) ?? iso3, [iso3]: val };
-  });
-  // Add an aggregate "max" row for radar scaling
-  const maxVal = Math.max(...radarData.map((r) => Object.values(r)[1] as number));
-  const minVal = Math.min(...radarData.map((r) => Object.values(r)[1] as number));
-  const radarDataWithScale = radarData.map((r) => {
-    const raw = Object.values(r)[1] as number;
-    return { name: r.name, [Object.keys(r)[1]]: maxVal > minVal ? ((raw - minVal) / (maxVal - minVal)) * 100 : 50 };
   });
 
   const loadInsight = async () => {
@@ -193,10 +209,11 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
         <CardContent className="p-5 space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
-              <label className="text-sm font-medium mb-2 block">Select countries</label>
+              <label htmlFor="country-search" className="text-sm font-medium mb-2 block">Select countries</label>
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
+                id="country-search"
                 type="text"
                 placeholder="Search countries..."
                 value={countrySearch}
@@ -204,27 +221,23 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                 className="w-full rounded-lg border border-input bg-transparent pl-9 pr-8 py-2 text-sm"
               />
               {countrySearch && (
-                <button onClick={() => setCountrySearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
+                <button
+                  onClick={() => setCountrySearch("")}
+                  aria-label="Clear country search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
                   <X className="h-4 w-4 text-muted-foreground" />
                 </button>
               )}
             </div>
-            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
-              {countries
-                .filter((c) => !countrySearch || c.name.toLowerCase().includes(countrySearch.toLowerCase()))
-                .map((c) => (
-                <button
-                  key={c.iso3}
-                  onClick={() => toggleCountry(c.iso3)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    selectedCountries.includes(c.iso3)
-                      ? "bg-blue-500 text-white border-blue-500"
-                      : "bg-card text-muted-foreground border-border hover:border-blue-300"
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
+            <div ref={chipRowRef} className="max-h-48 overflow-y-auto">
+              <FlowChips
+                className="flex flex-wrap content-start gap-2"
+                label="Select countries"
+                items={countryChipItems}
+                selected={selectedCountries}
+                onToggle={toggleCountry}
+              />
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               {selectedCountries.length} selected &middot; {countries.length} total
@@ -247,26 +260,12 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                 </optgroup>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Number of countries to compare
-            </label>
-            <select
-              value={countryCount}
-              onChange={(e) => setCountryCount(parseInt(e.target.value, 10))}
-              className="w-full sm:w-40 rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
-            >
-              {COUNT_OPTIONS.map((n) => (
-                <option key={n} value={n}>{n} countries</option>
-              ))}
-            </select>
             {pickingTop && (
               <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" /> Picking top {countryCount} countries for this indicator (India always included)...
+                <Loader2 className="h-3 w-3 animate-spin" /> Picking top {TOP_COUNTRY_COUNT} countries for this indicator (India always included)...
               </p>
             )}
-            </div>
+          </div>
           </div>
         </CardContent>
       </Card>
@@ -308,10 +307,10 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                 <LineChart data={chartData} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="year" tickLine={false} axisLine={false} className="text-xs" tick={{ fontSize: 11 }} />
-                  <YAxis tickLine={false} axisLine={false} className="text-xs" tick={{ fontSize: 11 }} width={60} />
+                  <YAxis tickLine={false} axisLine={false} className="text-xs" tick={{ fontSize: 11 }} width={60} tickFormatter={(v) => fmtCompact(v)} />
                   <Tooltip
                     contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v) => v != null && typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}
+                    formatter={(v) => typeof v === "number" ? fmtValue(v) : "—"}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   {selectedCountries.map((iso3, i) => (
@@ -333,10 +332,10 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                   <BarChart data={barData} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="name" tickLine={false} axisLine={false} className="text-xs" tick={{ fontSize: 11 }} />
-                    <YAxis tickLine={false} axisLine={false} className="text-xs" tick={{ fontSize: 11 }} width={60} />
+                    <YAxis tickLine={false} axisLine={false} className="text-xs" tick={{ fontSize: 11 }} width={60} tickFormatter={(v) => fmtCompact(v)} />
                     <Tooltip
                       contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v) => v != null && typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}
+                    formatter={(v) => typeof v === "number" ? fmtValue(v) : "—"}
                     />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {barData.map((entry, idx) => (
@@ -368,10 +367,10 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                 <RadarChart cx="50%" cy="50%" innerRadius={40} outerRadius={120} data={radarData}>
                   <PolarGrid gridType="polygon" stroke="hsl(var(--muted))" />
                   <PolarAngleAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <PolarRadiusAxis angle={30} tick={{ fontSize: 10 }} domain={[0, "dataMax + 10"]} />
+                  <PolarRadiusAxis angle={30} tick={{ fontSize: 10 }} domain={[0, "dataMax + 10"]} tickFormatter={(v) => fmtCompact(v)} />
                   <Tooltip
                     contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v) => v != null && typeof v === "number" ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}
+                    formatter={(v) => typeof v === "number" ? fmtValue(v) : "—"}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   {radarCountries.map((iso3, i) => (
@@ -408,7 +407,7 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
                             </div>
                             <div className="text-right">
                               <div className="font-mono text-sm">
-                                {diff > 0 ? "+" : ""}{diff.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                {diff > 0 ? "+" : ""}{fmtValue(diff)}
                               </div>
                               <div className={`text-xs font-mono ${isBetter ? "text-green-600" : "text-red-600"}`}>
                                 ({pct}% vs India)

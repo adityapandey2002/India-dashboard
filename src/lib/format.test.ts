@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fmtValue } from "./format";
+import { fmtCompact, fmtValue } from "./format";
 
 describe("fmtValue", () => {
   it("renders an em dash for nullish values", () => {
@@ -46,5 +46,34 @@ describe("fmtValue", () => {
 
   it("falls through to raw formatting for NaN", () => {
     expect(fmtValue(NaN)).toBe("NaN");
+  });
+});
+
+describe("fmtCompact", () => {
+  it("renders an em dash for nullish values", () => {
+    expect(fmtCompact(null)).toBe("—");
+  });
+
+  it("keeps small numbers un-compacted", () => {
+    expect(fmtCompact(0)).toBe("0");
+    expect(fmtCompact(0.5)).toBe("0.5");
+    expect(fmtCompact(999)).toBe("999");
+  });
+
+  it("compacts without padding forced decimals", () => {
+    expect(fmtCompact(1000)).toBe("1k");
+    expect(fmtCompact(1234.5)).toBe("1.23k");
+    expect(fmtCompact(1e6)).toBe("1M");
+    expect(fmtCompact(1.5e9)).toBe("1.5B");
+  });
+
+  it("renders GDP-sized values as trillions", () => {
+    expect(fmtCompact(32_000_000_000_000)).toBe("32T");
+    expect(fmtCompact(2.345e13)).toBe("23.45T");
+  });
+
+  it("handles negative values", () => {
+    expect(fmtCompact(-5e9)).toBe("-5B");
+    expect(fmtCompact(-1.5e12)).toBe("-1.5T");
   });
 });

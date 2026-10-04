@@ -132,9 +132,11 @@ test.describe("India Dashboard — critical user flows", () => {
       { timeout: 30_000 },
     );
 
-    // Default country selection: India, USA, China, Brazil, S. Africa
+    // India is always part of the auto-picked selection, and the chip must be
+    // rendered in its selected state (FlowChips sets aria-pressed on the button).
     const indiaBtn = page.locator("button", { hasText: "India" }).first();
     await expect(indiaBtn).toBeVisible();
+    await expect(indiaBtn).toHaveAttribute("aria-pressed", "true");
     const indiaClass = await indiaBtn.getAttribute("class");
     expect(indiaClass).toContain("bg-blue-500");
     await expect(page.getByText("5 selected ·")).toBeVisible();
