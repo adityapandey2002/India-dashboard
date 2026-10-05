@@ -22,6 +22,14 @@ function competitionRank(values: number[], value: number, higherIsBetter: boolea
 /**
  * Sort countries by their latest value and assign ranks + percentiles.
  * Rank 1 = best (highest value when higherIsBetter, lowest when not).
+ *
+ * `percentile` is a TRUE percentile (PERCENTRANK semantics): best = 100th,
+ * last place = 0th, i.e. the share of the field this country beats:
+ *   percentile = 100 × (total − rank) / (total − 1)
+ * This is deliberately different from the report card's 1–100 score
+ * (`indicatorScore()` in report-card.ts, documented on /methodology),
+ * which never returns 0. Do not "unify" them — they answer different
+ * questions. Pinned by rankings.test.ts.
  */
 export function computeRankings(
   rows: Array<{ iso3: string; value: number; year: number }>,

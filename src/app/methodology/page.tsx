@@ -21,7 +21,7 @@ const SCORING = [
   { step: "Collect the data", detail: "Each indicator is fetched from its source's public API, CSV or XLSX — the pipeline runs `npm run ingest` and stores raw country-year-value rows in the database (118+ indicators, 250k+ data points, 217 countries)." },
   { step: "Pick the latest year per country", detail: "Countries report in different years. For 'latest value' views we use each country's most recent available year for that indicator, so nothing is thrown away." },
   { step: "Rank countries", detail: "Rankings use competition ranking: equal values share the same rank (e.g. two countries at rank 3, next at 5). Ties keep the 'of N' denominator as the total number of countries with data." },
-  { step: "Score 0–100", detail: "A country's percentile-based score is derived from its rank: score = 100 × (1 − (rank − 1) / total). Rank 1 of 100 → 100 points; last place → ~1 point." },
+  { step: "Score 0–100", detail: "A country's percentile-based score is derived from its rank: score = 100 × (1 − (rank − 1) / total). Rank 1 of 100 → 100 points; last place → ~1 point. The Rankings page shows a true percentile instead — 100 × (total − rank) / (total − 1), where the best country is 100th and the last is 0th." },
   { step: "Grade A–F", detail: "Category and overall scores map to letter grades: A ≥ 85, B ≥ 70, C ≥ 55, D ≥ 40, F < 40. Grades are computed from percentile rank, not raw values — so a low raw value can still earn a good grade if it beats most countries." },
   { step: "Direction matters", detail: "Some indicators are 'lower is better' (mortality, pollution, inequality, crime, debt). The dashboard knows 25+ such indicators and flips their interpretation everywhere — trend arrows, deltas and 'better/worse' labels." },
 ];

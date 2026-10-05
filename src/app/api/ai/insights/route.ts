@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLatestSnapshot, getIndicatorSeries, getAllCountries, getLeaderboard } from "@/lib/db/queries";
-import { Groq } from "groq-sdk";
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
+import { chat } from "@/lib/ai";
 
 function buildStatsPrompt(
   iso3: string,
@@ -18,8 +16,16 @@ function buildStatsPrompt(
 }
 
 export async function POST(req: NextRequest) {
+  if (!process.env.GROQ_API_KEY) {
+    return NextResponse.json({ error: "AI unavailable. Set GROQ_API_KEY to enable." }, { status: 503 });
+  }
+
   try {
     const { iso3 = "IND", year } = await req.json();
+    if (typeof iso3 !== "string" || !/^[A-Z]{3}$/.test(iso3)) {
+      return NextResponse.json({ error: "iso3 must be a 3-letter ISO code (e.g. IND)" }, { status: 400 });
+    }
+
     const [snapshot, countries, co2Data, gdpData, hdiData, lifeExpData, leaderboard] = await Promise.all([
       getLatestSnapshot(iso3),
       getAllCountries(),
@@ -27,7 +33,7 @@ export async function POST(req: NextRequest) {
       getIndicatorSeries(iso3, "gdp_current_usd"),
       getIndicatorSeries(iso3, "hdi"),
       getIndicatorSeries(iso3, "life_expectancy"),
-      getLeaderboard("gdp_current_usd", year ?? new Date().getFullYear(), 10),
+      getLeaderboard("gdp_current_usd", year ?? new Date().getFullYear(), 10, true),
     ]);
 
     const countryName = countries.find((c) => c.iso3 === iso3)?.name ?? iso3;
@@ -55,14 +61,14 @@ ${leaderboard.slice(0, 3).map((r, i) => `  ${i + 1}. ${r.iso3}: $${(r.value ?? 0
 
 Provide a brief 3-sentence analysis of what these numbers mean together for ${countryName}.`;
 
-    const completion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
-      model: "llama-3.3-70b-versatile",
-      max_tokens: 300,
-    });
+    const analysis = await chat([{ role: "user", content: prompt }], { maxTokens: 300 });
+    if (!analysis) {
+      return NextResponse.json({ error: "AI unavailable. Set GROQ_API_KEY to enable." }, { status: 503 });
+    }
 
-    return NextResponse.json({ analysis: completion.choices[0]?.message?.content ?? "" });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ analysis });
+  } catch (err) {
+    console.error("[api/ai/insights]", err);
+    return NextResponse.json({ error: "Failed to generate analysis" }, { status: 500 });
   }
 }

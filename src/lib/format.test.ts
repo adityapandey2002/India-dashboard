@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fmtCompact, fmtValue } from "./format";
+import { fmtCompact, fmtValue, fmtMoney } from "./format";
 
 describe("fmtValue", () => {
   it("renders an em dash for nullish values", () => {
@@ -75,5 +75,30 @@ describe("fmtCompact", () => {
   it("handles negative values", () => {
     expect(fmtCompact(-5e9)).toBe("-5B");
     expect(fmtCompact(-1.5e12)).toBe("-1.5T");
+  });
+});
+
+describe("fmtMoney", () => {
+  it("renders an em dash for nullish values", () => {
+    expect(fmtMoney(null)).toBe("—");
+  });
+
+  it("prefixes $ and keeps 2 decimals at trillions", () => {
+    expect(fmtMoney(3.85e12)).toBe("$3.85T");
+    expect(fmtMoney(1e12)).toBe("$1.00T");
+  });
+
+  it("uses 1 decimal at billions and millions", () => {
+    expect(fmtMoney(2.1e9)).toBe("$2.1B");
+    expect(fmtMoney(7.5e6)).toBe("$7.5M");
+  });
+
+  it("keeps the sign before the symbol", () => {
+    expect(fmtMoney(-1.5e12)).toBe("-$1.50T");
+  });
+
+  it("does not prefix $ below a million", () => {
+    expect(fmtMoney(1234)).toBe("1,234");
+    expect(fmtMoney(42.34)).toBe("42.3");
   });
 });

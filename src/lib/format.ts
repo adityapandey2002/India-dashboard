@@ -27,3 +27,21 @@ export function fmtCompact(v: number | null): string {
   if (a >= 1e3) return `${trim(v / 1e3)}k`;
   return v.toLocaleString("en-US", { maximumFractionDigits: 2 });
 }
+
+/**
+ * Headline money KPI (hero numbers, e.g. the home GDP card):
+ * 3.85e12 → "$3.85T". Unlike {@link fmtValue} this prefixes "$" and uses
+ * 1 decimal at B/M; unlike {@link fmtCompact} it keeps forced decimals at
+ * trillions. The sign precedes the symbol (-$1.50T). Small values keep the
+ * raw number (no "$") — only GDP-scale values use this today.
+ */
+export function fmtMoney(v: number | null): string {
+  if (v == null) return "—";
+  const a = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (a >= 1e12) return `${sign}$${(a / 1e12).toFixed(2)}T`;
+  if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(1)}B`;
+  if (a >= 1e6) return `${sign}$${(a / 1e6).toFixed(1)}M`;
+  if (a >= 1e3) return v.toLocaleString();
+  return v.toFixed(1);
+}

@@ -96,7 +96,7 @@ export function ExploreClient({
               {hasData(c) ? (
                 <Badge variant="default" className="shrink-0 bg-green-600 text-xs">data</Badge>
               ) : (
-                <Badge variant="outline" className="shrink-0 text-xs text-muted-foreground">no data</Badge>
+                <Badge variant="outline" className="shrink-0 text-xs text-muted-foreground">No data yet</Badge>
               )}
             </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -116,9 +116,11 @@ export function ExploreClient({
               )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground capitalize">Source: {c.source}</p>
-            <p className="mt-1 text-xs text-blue-500">
-              <Link href={`/compare?indicator=${c.indicatorId}`} className="hover:underline">Compare countries →</Link>
-            </p>
+            {hasData(c) && (
+              <p className="mt-1 text-xs text-blue-500">
+                <Link href={`/compare?indicator=${c.indicatorId}`} className="hover:underline">Compare countries →</Link>
+              </p>
+            )}
           </div>
         ))}
       </div>

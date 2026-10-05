@@ -17,6 +17,8 @@ import {
   getAllIndicators,
 } from "@/lib/db/queries";
 import { query } from "@/lib/db/client";
+import { computeTrend } from "@/lib/trend";
+import { fmtMoney } from "@/lib/format";
 
 const INDIA = "IND";
 
@@ -28,17 +30,8 @@ const COMPARISON_COUNTRIES: Array<{ iso3: string; name: string }> = [
   { iso3: "ZAF", name: "S. Africa" },
 ];
 
-function fmtBig(v: number | null): string {
-  if (v == null) return "\u2014";
-  if (Math.abs(v) >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
-  if (Math.abs(v) >= 1e9)  return `$${(v / 1e9).toFixed(1)}B`;
-  if (Math.abs(v) >= 1e6)  return `$${(v / 1e6).toFixed(1)}M`;
-  if (Math.abs(v) >= 1e3)  return v.toLocaleString();
-  return v.toFixed(1);
-}
-
 function fmtPlain(v: number | null, decimals = 1): string {
-  if (v == null) return "\u2014";
+  if (v == null) return "—";
   return v.toLocaleString(undefined, { maximumFractionDigits: decimals });
 }
 
@@ -112,13 +105,10 @@ export default async function HomePage() {
   const prevMap = new Map(kpiIds.map((id, i) => [id, prevValues[i]]));
 
   function trend(id: string): { trend?: "up" | "down" | "flat"; trendLabel?: string } {
-    const curr = snapshot[id]?.value;
-    const prev = prevMap.get(id);
-    if (curr == null || prev == null || prev === 0) return {};
-    const pct = ((curr - prev) / Math.abs(prev)) * 100;
-    if (Math.abs(pct) < 0.5) return { trend: "flat", trendLabel: "~0%" };
-    const dir = pct > 0 ? "up" as const : "down" as const;
-    return { trend: dir, trendLabel: `${pct > 0 ? "+" : ""}${pct.toFixed(1)}%` };
+    const t = computeTrend(snapshot[id]?.value ?? null, prevMap.get(id) ?? null);
+    if (!t) return {};
+    if (t.direction === "flat") return { trend: "flat", trendLabel: "~0%" };
+    return { trend: t.direction, trendLabel: `${t.pct > 0 ? "+" : ""}${t.pct.toFixed(1)}%` };
   }
 
   const indicatorsWithData = [...coverageMap.entries()].filter(([, c]) => c > 0).length;
@@ -127,18 +117,18 @@ export default async function HomePage() {
   const indicatorMeta = new Map(allIndicators.map((i) => [i.id, i]));
 
   const kpiCards: KpiCard[] = [
-    { label: "GDP (current US$)", value: fmtBig(gdp?.value), hint: gdp?.year ? `${gdp.year} · World Bank` : "", icon: "Database", indicatorId: "gdp_current_usd", category: "economy", unit: "US$", description: indicatorMeta.get("gdp_current_usd")?.description ?? undefined, ...trend("gdp_current_usd") },
-    { label: "Global GDP Rank", value: indiaRank ? `#${indiaRank.rank}` : "\u2014", hint: indiaRank ? `${indiaRank.total} countries` : "", icon: "TrendingUp", indicatorId: "gdp_current_usd", category: "economy", unit: "US$", description: "India's position in the world GDP ranking for the latest year." },
+    { label: "GDP (current US$)", value: fmtMoney(gdp?.value), hint: gdp?.year ? `${gdp.year} · World Bank` : "", icon: "Database", indicatorId: "gdp_current_usd", category: "economy", unit: "US$", description: indicatorMeta.get("gdp_current_usd")?.description ?? undefined, ...trend("gdp_current_usd") },
+    { label: "Global GDP Rank", value: indiaRank ? `#${indiaRank.rank}` : "—", hint: indiaRank ? `${indiaRank.total} countries` : "", icon: "TrendingUp", indicatorId: "gdp_current_usd", category: "economy", unit: "US$", description: "India's position in the world GDP ranking for the latest year." },
     { label: "Life Expectancy", value: fmtPlain(lifeExp?.value, 1), hint: lifeExp?.year ? `${lifeExp.year}y · WB+UNDP` : "", icon: "Calendar", indicatorId: "life_expectancy", category: "health", unit: "years", description: indicatorMeta.get("life_expectancy")?.description ?? undefined, ...trend("life_expectancy") },
-    { label: "Internet Access", value: internet?.value != null ? `${internet.value.toFixed(0)}%` : "\u2014", hint: internet?.year ? `${internet.year} · WB` : "", icon: "Globe2", indicatorId: "internet_penetration", category: "technology", unit: "% of population", description: indicatorMeta.get("internet_penetration")?.description ?? undefined, ...trend("internet_penetration") },
-    { label: "HDI", value: hdi?.value != null ? hdi.value.toFixed(3) : "\u2014", hint: hdi?.year ? `${hdi.year} · UNDP` : "", icon: "Globe2", indicatorId: "hdi", category: "development", unit: "index (0–1)", description: indicatorMeta.get("hdi")?.description ?? undefined, ...trend("hdi") },
-    { label: "GNI per capita", value: gniCap?.value != null ? `$${gniCap.value.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "\u2014", hint: gniCap?.year ? `${gniCap.year} · UNDP` : "", icon: "Database", indicatorId: "gni_per_capita", category: "economy", unit: "US$", description: indicatorMeta.get("gni_per_capita")?.description ?? undefined, ...trend("gni_per_capita") },
+    { label: "Internet Access", value: internet?.value != null ? `${internet.value.toFixed(0)}%` : "—", hint: internet?.year ? `${internet.year} · WB` : "", icon: "Globe2", indicatorId: "internet_penetration", category: "technology", unit: "% of population", description: indicatorMeta.get("internet_penetration")?.description ?? undefined, ...trend("internet_penetration") },
+    { label: "HDI", value: hdi?.value != null ? hdi.value.toFixed(3) : "—", hint: hdi?.year ? `${hdi.year} · UNDP` : "", icon: "Globe2", indicatorId: "hdi", category: "development", unit: "index (0–1)", description: indicatorMeta.get("hdi")?.description ?? undefined, ...trend("hdi") },
+    { label: "GNI per capita", value: gniCap?.value != null ? `$${gniCap.value.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "—", hint: gniCap?.year ? `${gniCap.year} · UNDP` : "", icon: "Database", indicatorId: "gni_per_capita", category: "economy", unit: "US$", description: indicatorMeta.get("gni_per_capita")?.description ?? undefined, ...trend("gni_per_capita") },
     { label: "School (expected)", value: fmtPlain(schoolYrs?.value, 1), hint: schoolYrs?.year ? `${schoolYrs.year}y · UNDP` : "", icon: "BookOpen", indicatorId: "expected_yrs_school", category: "education", unit: "years", description: indicatorMeta.get("expected_yrs_school")?.description ?? undefined, ...trend("expected_yrs_school") },
-    { label: "Maternal mortality", value: matMortal?.value != null ? `${matMortal.value.toFixed(0)}/100k` : "\u2014", hint: matMortal?.year ? `${matMortal.year} · WB` : "", icon: "Heart", indicatorId: "maternal_mortality", category: "health", unit: "per 100k births", description: indicatorMeta.get("maternal_mortality")?.description ?? undefined, ...trend("maternal_mortality") },
-    { label: "CO₂ per capita", value: co2?.value != null ? `${co2.value.toFixed(2)}t` : "\u2014", hint: co2?.year ? `${co2.year} · OWID` : "", icon: "Leaf", indicatorId: "co2_per_capita", category: "environment", unit: "tonnes", description: indicatorMeta.get("co2_per_capita")?.description ?? undefined, ...trend("co2_per_capita") },
-    { label: "UHC Coverage", value: uhc?.value != null ? `${uhc.value.toFixed(0)}%` : "\u2014", hint: uhc?.year ? `${uhc.year} · WHO` : "", icon: "Heart", indicatorId: "uhc_idx", category: "health", unit: "index (0–100)", description: indicatorMeta.get("uhc_idx")?.description ?? undefined, ...trend("uhc_idx") },
+    { label: "Maternal mortality", value: matMortal?.value != null ? `${matMortal.value.toFixed(0)}/100k` : "—", hint: matMortal?.year ? `${matMortal.year} · WB` : "", icon: "Heart", indicatorId: "maternal_mortality", category: "health", unit: "per 100k births", description: indicatorMeta.get("maternal_mortality")?.description ?? undefined, ...trend("maternal_mortality") },
+    { label: "CO₂ per capita", value: co2?.value != null ? `${co2.value.toFixed(2)}t` : "—", hint: co2?.year ? `${co2.year} · OWID` : "", icon: "Leaf", indicatorId: "co2_per_capita", category: "environment", unit: "tonnes", description: indicatorMeta.get("co2_per_capita")?.description ?? undefined, ...trend("co2_per_capita") },
+    { label: "UHC Coverage", value: uhc?.value != null ? `${uhc.value.toFixed(0)}%` : "—", hint: uhc?.year ? `${uhc.year} · WHO` : "", icon: "Heart", indicatorId: "uhc_idx", category: "health", unit: "index (0–100)", description: indicatorMeta.get("uhc_idx")?.description ?? undefined, ...trend("uhc_idx") },
     { label: "Pop. growth", value: fmtPlain(popGrowth?.value, 2), hint: popGrowth?.year ? `${popGrowth.year} · WB` : "", icon: "BarChart3", indicatorId: "population_growth", category: "demographics", unit: "% per year", description: indicatorMeta.get("population_growth")?.description ?? undefined, ...trend("population_growth") },
-    { label: "Gini (inequality)", value: gini?.value != null ? gini.value.toFixed(1) : "\u2014", hint: gini?.year ? `${gini.year} · WB` : "", icon: "BarChart3", indicatorId: "gini", category: "society", unit: "index (0–100)", description: indicatorMeta.get("gini")?.description ?? undefined, ...trend("gini") },
+    { label: "Gini (inequality)", value: gini?.value != null ? gini.value.toFixed(1) : "—", hint: gini?.year ? `${gini.year} · WB` : "", icon: "BarChart3", indicatorId: "gini", category: "society", unit: "index (0–100)", description: indicatorMeta.get("gini")?.description ?? undefined, ...trend("gini") },
   ];
 
   return (

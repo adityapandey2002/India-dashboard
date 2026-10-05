@@ -8,6 +8,8 @@ import { indicatorScore, average, gradeFor, prevValueInSeries } from "@/lib/repo
 import { fmtValue } from "@/lib/format";
 import { CountryRadar } from "@/components/dashboard/country-radar";
 import { CountryTrendCard } from "@/components/dashboard/country-trend-card";
+import { CountryInsight } from "@/components/dashboard/country-insight";
+import { computeTrend } from "@/lib/trend";
 
 const ICONS: Record<string, LucideIcon> = {
   economy: Building2, society: Users, governance: Shield,
@@ -36,12 +38,12 @@ function Sparkline({ data }: { data: { year: number; value: number | null }[] })
 type Trend = { icon: LucideIcon; color: string; label: string } | null;
 
 function getTrend(current: number | null, previous: number | null): Trend {
-  if (current == null || previous == null || previous === 0) return null;
-  const pct = ((current - previous) / Math.abs(previous)) * 100;
-  if (Math.abs(pct) < 0.5) return { icon: Minus, color: "text-muted-foreground", label: "Stable" };
-  return pct > 0
-    ? { icon: ArrowUpRight, color: "text-green-600", label: `+${pct.toFixed(1)}%` }
-    : { icon: ArrowDownRight, color: "text-red-600", label: `${pct.toFixed(1)}%` };
+  const t = computeTrend(current, previous);
+  if (!t) return null;
+  if (t.direction === "flat") return { icon: Minus, color: "text-muted-foreground", label: "Stable" };
+  return t.direction === "up"
+    ? { icon: ArrowUpRight, color: "text-green-600", label: `+${t.pct.toFixed(1)}%` }
+    : { icon: ArrowDownRight, color: "text-red-600", label: `${t.pct.toFixed(1)}%` };
 }
 
 type Entry = {
@@ -252,6 +254,9 @@ export default async function CountryPage({ params, searchParams }: { params: Pr
         {trendIndicators.length > 0 && (
           <CountryTrendCard country={code} countryName={country.name} indicators={trendIndicators} initialId={indicator} />
         )}
+
+        {/* AI analysis */}
+        <CountryInsight iso3={code} countryName={country.name} />
 
         {/* Category Panels */}
         {data.map(({ category, entries }) => {

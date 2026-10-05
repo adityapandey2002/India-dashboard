@@ -52,18 +52,3 @@ export async function chat(
   }
 }
 
-export async function generateInsight(
-  context: string,
-  question: string,
-): Promise<string | null> {
-  return chat([
-    {
-      role: "system",
-      content: `You are a data analyst helping interpret global development indicators for India compared to other countries. Be concise, data-driven, and insightful. Keep responses under 200 words.`,
-    },
-    {
-      role: "user",
-      content: `Here is the relevant data context:\n\n${context}\n\nQuestion: ${question}`,
-    },
-  ]);
-}

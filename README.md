@@ -1,7 +1,7 @@
 # India in the World — Global Progress Dashboard
 
-> A live dashboard that tracks India's rankings across 120 registered global
-> indicators (100 currently with data — economy, health, education, environment,
+> A live dashboard that tracks India's rankings across 123 registered global
+> indicators (117 currently with data — economy, health, education, environment,
 > governance, technology, and more), sourced from trusted public datasets like
 > the World Bank, WHO, UNDP, OWID, and Numbeo.
 
@@ -15,10 +15,10 @@ hackathon demo — clean data, clean code, shippable today.
 | Area | What we have | Status |
 |---|---|---|
 | Data layer | SQLite locally (`node:sqlite`) + optional Supabase PG via `DATABASE_URL` auto-detect (`src/lib/db/client.ts`) | ✅ |
-| Data ingestion | 34 sources → 217 countries, ~105,740 data points (WB, UNDP, WHO, OWID, WGI, TI, Numbeo, …) | ✅ |
-| Indicator registry | 120 indicators, categorized, source-mapped (`src/lib/data/indicators.ts`) | ✅ |
+| Data ingestion | 34 sources → 217 countries, 252,834 data points (WB, UNDP, WHO, OWID, WGI, TI, Numbeo, …) | ✅ |
+| Indicator registry | 123 indicators, categorized, source-mapped (`src/lib/data/indicators.ts`) | ✅ |
 | Home page | KPI cards, 4 multi-country trend charts, interactive D3 world map, scatter correlation | ✅ |
-| Explore / Indicator / Country | `/explore` (category filter + search), `/indicator/[id]`, `/country/[iso3]` (radar vs India) | ✅ |
+| Explore / Indicator / Country | `/explore` (category filter + search), `/indicator/[id]`, `/country/[iso3]` (radar vs India + on-demand AI analysis) | ✅ |
 | Compare page | `/compare` — multi-country line/bar/radar + delta highlights + AI insight panel | ✅ |
 | Rankings page | `/rankings` — sortable world rankings, India rank-over-time | ✅ |
 | Report card | `/report-card` — A–F grade, per-category scores, Print/CSV export | ✅ |
@@ -73,7 +73,7 @@ hackathon demo — clean data, clean code, shippable today.
 - **One DB layer.** `src/lib/db/queries.ts` is the *only* place that knows
   SQL, and `src/lib/db/client.ts` auto-detects the driver: local SQLite when no
   `DATABASE_URL` is set, Supabase PG when it is.
-- **One indicator registry.** `src/lib/data/indicators.ts` lists all 120
+- **One indicator registry.** `src/lib/data/indicators.ts` lists all 123
   metrics with their source + upstream ID. Add an indicator there and the
   ingestion script picks it up automatically.
 - **Free-first.** Local SQLite, free-tier Vercel, free AI APIs (Groq,
@@ -93,7 +93,7 @@ cp .env.example .env.local
 #   Leave DATABASE_URL commented out to run on local SQLite.
 
 # 3. fetch data (34 sources → data/india.db: 217 countries,
-#    120 indicators, ~105k data points)
+#    123 indicators, 252k data points)
 npm run ingest
 
 # 4. verify the data (optional but handy)
@@ -141,12 +141,13 @@ india-dashboard/
 │   │   │   ├── queries.ts          # all DB queries used by the app
 │   │   │   └── types.ts            # TypeScript shapes + row mappers
 │   │   ├── data/
-│   │   │   ├── indicators.ts       # the 120-indicator registry
+│   │   │   ├── indicators.ts       # the 123-indicator registry
 │   │   │   └── sources/            # world-bank.ts, undp.ts, owid-generic.ts, ...
 │   │   ├── ai/                     # embeddings, vector-search, Groq client
-│   │   ├── format.ts               # shared fmtValue (compact numbers)
+│   │   ├── format.ts               # shared fmtValue / fmtMoney (compact numbers)
 │   │   ├── report-card.ts          # A–F grade + score helpers
 │   │   ├── rankings.ts             # ranking helpers (ties share rank)
+│   │   ├── trend.ts                # shared YoY trend classification (0.5% flat)
 │   │   └── rank-direction.ts       # which indicators are lower-is-better
 │   └── test/
 │       └── setup.ts                # Vitest setup (jsdom)
@@ -165,23 +166,23 @@ india-dashboard/
 └── README.md
 ```
 
-## The 120 indicators we support
+## The 123 indicators we support
 
 | Category | Indicators |
 |---|---|
-| 🛢 Economy | 21 |
+| 🛢 Economy | 22 |
 | 💻 Tech & Innovation | 17 |
-| 👥 Society | 14 |
+| 👥 Society | 15 |
 | 🏥 Healthcare | 14 |
 | 🌱 Environment | 13 |
 | 🏛 Governance | 10 |
 | 🎓 Education | 10 |
 | 🛡 Safety | 8 |
-| ⚖ Equality | 8 |
+| ⚖ Equality | 9 |
 | 🌐 Digital Gov | 5 |
 
-> 100 of the 120 currently have data; the 20 zero-point indicators are listed by
-> `npm run status` (the 10 with no usable open dataset are called out in AGENTS.md).
+> 117 of the 123 currently have data; the 6 zero-point indicators are listed by
+> `npm run status` (the 5 with no usable open dataset are called out in AGENTS.md).
 > We started with World Bank because it's the highest-coverage, no-auth source.
 > Every other source follows the same shape — drop a fetcher in
 > `src/lib/data/sources/`, add it to the registry, run `npm run ingest`.
@@ -193,9 +194,9 @@ india-dashboard/
    (`npm run ingest` with `DATABASE_URL` set), then update the Vercel env vars.
    SQLite can't run on Vercel serverless (ephemeral FS; `data/*.db` is gitignored),
    so production is blocked until this is done.
-2. **Source the remaining zero-point indicators** — 20 indicators currently at 0
-   points locally (see `npm run status`). The 10 with no usable open dataset and
-   the 10 whose fetchers still need re-ingesting are listed in AGENTS.md.
+2. **Source the remaining zero-point indicators** — 6 indicators currently at 0
+   points (see `npm run status`). The 5 with no usable open dataset and the
+   1 whose fetcher needs debugging (`epi`) are listed in AGENTS.md.
 3. **Auth / users** — next feature on the roadmap.
 4. **Keep improving the AI layer** — Groq RAG chat is live at `/chat`; integrate
    more source documents, move to Claude when traffic warrants.

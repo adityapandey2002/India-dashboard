@@ -7,17 +7,18 @@ import { ReportCardSections } from "@/components/dashboard/report-card-sections"
 import { ArrowUpRight, ArrowDownRight, Minus, FileText, Calendar, Globe, BarChart2, TrendingUp, TrendingDown, type LucideIcon } from "lucide-react";
 import { getDashboardStats, getLatestSnapshot, getAllIndicators, getCountryHistory, getLatestRanks } from "@/lib/db/queries";
 import { indicatorScore, average, gradeFor, prevValueInSeries, type Grade } from "@/lib/report-card";
+import { computeTrend } from "@/lib/trend";
 
 const INDIA = "IND";
 const PEER = "CHN";
 
 function getTrend(current: number | null, previous: number | null) {
-  if (current == null || previous == null || previous === 0) return null;
-  const pct = ((current - previous) / Math.abs(previous)) * 100;
-  if (Math.abs(pct) < 0.1) return { icon: Minus, color: "text-muted-foreground", label: "Stable" };
-  return pct > 0
-    ? { icon: ArrowUpRight, color: "text-green-600", label: `+${pct.toFixed(1)}%` }
-    : { icon: ArrowDownRight, color: "text-red-600", label: `${pct.toFixed(1)}%` };
+  const t = computeTrend(current, previous);
+  if (!t) return null;
+  if (t.direction === "flat") return { icon: Minus, color: "text-muted-foreground", label: "Stable" };
+  return t.direction === "up"
+    ? { icon: ArrowUpRight, color: "text-green-600", label: `+${t.pct.toFixed(1)}%` }
+    : { icon: ArrowDownRight, color: "text-red-600", label: `${t.pct.toFixed(1)}%` };
 }
 
 type Trend = { icon: LucideIcon; color: string; label: string } | null;

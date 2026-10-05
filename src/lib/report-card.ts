@@ -5,6 +5,13 @@
 /**
  * Score an indicator for a country given its rank (1 = best) among `total`
  * countries. Returns a 0-100 score where the best country gets 100.
+ *
+ * This is a normalized SCORE, not a percentile: last place earns
+ * 1/total × 100 (never 0), so category averages don't collapse.
+ * Formula: score = 100 × (total − rank + 1) / total — documented on
+ * /methodology. The /rankings page uses a true percentile instead
+ * (see computeRankings() in rankings.ts); the two are intentionally
+ * different statistics. Pinned by report-card.test.ts.
  */
 export function indicatorScore(rank: number, total: number): number {
   if (!Number.isFinite(rank) || !Number.isFinite(total) || total <= 1) return 50;
