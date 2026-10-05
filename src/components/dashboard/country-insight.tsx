@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 type Props = { iso3: string; countryName: string };
 
 /**
- * On-demand AI analysis for a country page. Calls POST /api/ai/insights,
- * which shares the same chat() helper (and GROQ_API_KEY) as /api/ai/chat.
+ * On-demand AI analysis for a country page. Calls POST /api/ai/insights, which
+ * shares the same Groq client (and GROQ_API_KEY) as /api/ai/chat.
  */
 export function CountryInsight({ iso3, countryName }: Props) {
   const [analysis, setAnalysis] = useState<string | null>(null);
@@ -27,11 +27,9 @@ export function CountryInsight({ iso3, countryName }: Props) {
       });
       const body = await res.json();
       if (!res.ok) {
-        setError(
-          res.status === 503
-            ? "AI analysis is unavailable (GROQ_API_KEY is not configured)."
-            : (body.error ?? "Could not generate analysis."),
-        );
+        // Trust the server's reason (it distinguishes a missing key from a bad key
+        // from a decommissioned model) instead of guessing from the status code.
+        setError(body.error ?? "Could not generate analysis.");
         return;
       }
       setAnalysis(body.analysis);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { chat, type ChatMessage } from "@/lib/ai";
+import { chatDetailed, chatFailureMessage, type ChatMessage } from "@/lib/ai";
 import { query } from "@/lib/db/client";
 import { vectorSearch } from "@/lib/ai/vector-search";
 import { INDIA_EVENTS } from "@/lib/historical-events";
@@ -245,16 +245,26 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    const answer = await chat(messages, { temperature: 0.2, maxTokens: 1500 });
+    const result = await chatDetailed(messages, { temperature: 0.2, maxTokens: 1500 });
 
-    if (!answer) {
+    if (!result.ok) {
+      // Log the real reason server-side; JSON.stringify so an upstream body can't
+      // inject newlines/ANSI into logs, and the key is never included.
+      console.error(
+        "[api/ai/chat] groq call failed",
+        JSON.stringify({
+          reason: result.reason,
+          status: result.status,
+          model: result.model,
+          detail: result.detail,
+        }),
+      );
       return NextResponse.json({
-        answer: vectorResults
-          ? "AI unavailable. Set GROQ_API_KEY in .env to enable AI responses."
-          : "AI unavailable. Set GROQ_API_KEY to enable. (Vector search also needs HF_API_KEY for embeddings.)",
+        answer: chatFailureMessage(result.reason),
         citations: [],
       });
     }
+    const answer = result.text;
 
     const citationIds = [...answer.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]);
     const citations = contextChunks

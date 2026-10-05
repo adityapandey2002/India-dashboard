@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLatestSnapshot, getIndicatorSeries, getAllCountries, getLeaderboard } from "@/lib/db/queries";
-import { chat } from "@/lib/ai";
+import { chatDetailed, chatFailureMessage } from "@/lib/ai";
 
 function buildStatsPrompt(
   iso3: string,
@@ -16,11 +16,9 @@ function buildStatsPrompt(
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.GROQ_API_KEY) {
-    return NextResponse.json({ error: "AI unavailable. Set GROQ_API_KEY to enable." }, { status: 503 });
-  }
-
   try {
+    // The missing-key case is handled by chatDetailed's failure taxonomy, so it
+    // doesn't need its own (differently-worded) pre-check here.
     const { iso3 = "IND", year } = await req.json();
     if (typeof iso3 !== "string" || !/^[A-Z]{3}$/.test(iso3)) {
       return NextResponse.json({ error: "iso3 must be a 3-letter ISO code (e.g. IND)" }, { status: 400 });
@@ -61,12 +59,30 @@ ${leaderboard.slice(0, 3).map((r, i) => `  ${i + 1}. ${r.iso3}: $${(r.value ?? 0
 
 Provide a brief 3-sentence analysis of what these numbers mean together for ${countryName}.`;
 
-    const analysis = await chat([{ role: "user", content: prompt }], { maxTokens: 300 });
-    if (!analysis) {
-      return NextResponse.json({ error: "AI unavailable. Set GROQ_API_KEY to enable." }, { status: 503 });
+    const result = await chatDetailed([{ role: "user", content: prompt }], { maxTokens: 300 });
+    if (!result.ok) {
+      // JSON.stringify so an upstream body can't inject newlines/ANSI into logs.
+      console.error(
+        "[api/ai/insights] groq call failed",
+        JSON.stringify({
+          reason: result.reason,
+          status: result.status,
+          model: result.model,
+          detail: result.detail,
+        }),
+      );
+      // 401/403/404 are configuration problems (key or model), not "AI is down";
+      // only upstream 5xx/400 means we reached the provider and it failed.
+      const status =
+        result.reason === "rate-limited"
+          ? 429
+          : result.reason === "upstream-error" || result.reason === "bad-request"
+            ? 502
+            : 503;
+      return NextResponse.json({ error: chatFailureMessage(result.reason) }, { status });
     }
 
-    return NextResponse.json({ analysis });
+    return NextResponse.json({ analysis: result.text });
   } catch (err) {
     console.error("[api/ai/insights]", err);
     return NextResponse.json({ error: "Failed to generate analysis" }, { status: 500 });

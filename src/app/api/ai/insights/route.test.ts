@@ -15,7 +15,8 @@ vi.mock("@/lib/db/queries", () => ({
 }));
 
 vi.mock("@/lib/ai", () => ({
-  chat: (...args: unknown[]) => chatMock(...args),
+  chatDetailed: (...args: unknown[]) => chatMock(...args),
+  chatFailureMessage: (reason: string) => `failed:${reason}`,
 }));
 
 const { POST } = await import("./route");
@@ -47,9 +48,11 @@ describe("POST /api/ai/insights", () => {
 
   it("returns 503 when GROQ_API_KEY is not set", async () => {
     delete process.env.GROQ_API_KEY;
+    chatMock.mockResolvedValue({ ok: false, text: null, reason: "missing-key" });
     const res = await POST(makePost({ iso3: "IND" }));
     expect(res.status).toBe(503);
-    expect(chatMock).not.toHaveBeenCalled();
+    // The reason comes from the client taxonomy — it should reach the user verbatim.
+    expect((await res.json()).error).toBe("failed:missing-key");
   });
 
   it("returns 400 for a malformed iso3", async () => {
@@ -60,8 +63,8 @@ describe("POST /api/ai/insights", () => {
     expect(getLatestSnapshotMock).not.toHaveBeenCalled();
   });
 
-  it("defaults to IND and returns the analysis from chat()", async () => {
-    chatMock.mockResolvedValue("India is doing well.");
+  it("defaults to IND and returns the analysis from chatDetailed()", async () => {
+    chatMock.mockResolvedValue({ ok: true, text: "India is doing well.", model: "qwen/qwen3.8-27b" });
     const res = await POST(makePost({}));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -74,17 +77,29 @@ describe("POST /api/ai/insights", () => {
       10,
       true,
     );
-    // routed through the shared chat() helper with a tight token budget
+    // routed through the shared client with a tight token budget
     expect(chatMock).toHaveBeenCalledWith(
       [{ role: "user", content: expect.stringContaining("India (IND)") }],
       { maxTokens: 300 },
     );
   });
 
-  it("returns 503 when chat() yields nothing (key set, call failed)", async () => {
-    chatMock.mockResolvedValue(null);
+  it("surfaces a decommissioned model as 503 + the real reason", async () => {
+    chatMock.mockResolvedValue({ ok: false, text: null, reason: "model-unavailable", status: 404 });
     const res = await POST(makePost({ iso3: "USA" }));
     expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe("failed:model-unavailable");
+  });
+
+  it("maps rate-limited to 429 and upstream failures to 502", async () => {
+    chatMock.mockResolvedValue({ ok: false, text: null, reason: "rate-limited", status: 429 });
+    expect((await POST(makePost({ iso3: "USA" }))).status).toBe(429);
+
+    chatMock.mockResolvedValue({ ok: false, text: null, reason: "upstream-error", status: 500 });
+    expect((await POST(makePost({ iso3: "USA" }))).status).toBe(502);
+
+    chatMock.mockResolvedValue({ ok: false, text: null, reason: "bad-request", status: 400 });
+    expect((await POST(makePost({ iso3: "USA" }))).status).toBe(502);
   });
 
   it("returns a generic 500 without leaking internals", async () => {

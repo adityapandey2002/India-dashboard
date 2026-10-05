@@ -1,3 +1,3 @@
-export { chat } from "./client";
-export type { GroqModel, ChatMessage, ChatOptions } from "./client";
+export { chatDetailed, resolveModel, chatFailureMessage } from "./client";
+export type { ChatMessage, ChatOptions, ChatResult, ChatFailure } from "./client";
 export { getEmbedding, getEmbeddings } from "./embeddings";

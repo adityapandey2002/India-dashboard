@@ -10,9 +10,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ```
 DATABASE_PATH=./data/india.db
 GROQ_API_KEY=          # For AI chatbot answers (get from console.groq.com)
+GROQ_MODEL=            # OPTIONAL — pin the chat model; leave BLANK to auto-detect (recommended!)
 HF_API_KEY=            # Optional — HuggingFace token for RAG embeddings (chat works without it)
 # DATABASE_URL=        # OPTIONAL — set to a LIVE Supabase PG connection string to run against Postgres
 ```
+⚠️ **Never hardcode a Groq model id.** Groq decommissions models and each key serves a different set, so a hardcoded id silently breaks *every* AI feature while the UI still says "set `GROQ_API_KEY`". `src/lib/ai/client.ts` resolves the model at runtime from `GET /openai/v1/models` (cached 10 min, de-duplicated, `active: false` filtered out, audio/reasoning models excluded). See "AI model resolution" under Security hardening.
 ⚠️ `.env` no longer contains `DATABASE_URL` — it was removed because the old Supabase host is dead (see "Known issues / deployment status" below). The dev server, `npm run ingest`, `npm run index-embeddings` and `npm run status` all read `.env`, so the **working local DB is SQLite** at `data/india.db` (217 countries, 123 indicators, 117 with data, 252,834 data points). `.env` (gitignored) holds the **real** `GROQ_API_KEY`/`HF_API_KEY`; `.env.example` must stay a placeholder — never copy a live key into it. `.env*` is gitignored.
 
 ## Dev server & tests
@@ -20,7 +22,7 @@ HF_API_KEY=            # Optional — HuggingFace token for RAG embeddings (chat
 
 ```bash
 npx next dev -p 3456  # dev server for the e2e suite (no auto-start in playwright.config.ts)
-npm test               # = npx vitest run → 75 tests / 11 files
+npm test               # = npx vitest run → 98 tests / 12 files
 npx playwright test    # 25 e2e tests / 3 specs (flows.spec.ts 9 + compare-tokens.spec.ts 7 + health.spec.ts 9)
 ```
 
@@ -62,7 +64,7 @@ To seed PG from scratch (new project):
 - **Local = SQLite** — `.env` was cleaned (DATABASE_URL removed) and local dev runs on `data/india.db` via `node:sqlite`. All pages verified 200: home, explore, indicator, country, compare, rankings, report-card.
 - **Vercel env unverified** — production env vars likely still contain the stale `DATABASE_URL`; the working DB on Vercel is unknown. SQLite is not viable on Vercel serverless (ephemeral FS; `data/*.db` is gitignored) → a new Supabase project + re-seed + env update is required before prod works.
 - **Local DB state** — `npm run status` on the live SQLite DB: 217 countries, 123 indicators (117 with data, 6 at 0 pts: `broadband_speed`, `ccpi`, `digital_competitiveness`, `epi`, `qs_rank`, `startup_ecosystem`), 252,834 data points, 34 sources, TF-IDF 50,000 chunks. The previously-missing fetcher-backed indicators (`air_quality`, `patents_per_million`, `trademark_applications`, the composite indices from `indices.ts`) now have data locally.
-- **Tests** — `npm test` (`vitest run`): **75 passing across 11 files**; `npx playwright test`: **25 e2e tests across 3 specs** (`e2e/flows.spec.ts` 9 + `e2e/compare-tokens.spec.ts` 7 + `e2e/health.spec.ts` 9, the latter generated from the 8 entries in `CRITICAL_PATHS`). Playwright browsers are installed locally, so no extra install step. The e2e suite expects a dev server already running on **:3456** (see "Dev server & tests" above) — it has no `webServer` block.
+- **Tests** — `npm test` (`vitest run`): **98 passing across 12 files**; `npx playwright test`: **25 e2e tests across 3 specs** (`e2e/flows.spec.ts` 9 + `e2e/compare-tokens.spec.ts` 7 + `e2e/health.spec.ts` 9, the latter generated from the 8 entries in `CRITICAL_PATHS`). Playwright browsers are installed locally, so no extra install step. The e2e suite expects a dev server already running on **:3456** (see "Dev server & tests" above) — it has no `webServer` block.
 - **Lint — compare page fixed, repo not clean** — the old `react-hooks/set-state-in-effect` error on `src/components/dashboard/comparison-tool.tsx` is gone (the `?country=` param is read in a lazy `useState` initializer instead of a mount effect), and `comparison-tool.tsx`, `flow-chips.tsx` and both of their tests are at 0 problems. But `npm run lint` still exits non-zero overall: **20 errors / 24 warnings** across 15 files (`no-explicit-any` in `src/lib/db/client.ts`, `world-map-card.tsx`, `src/app/api/ai/chat/route.ts`, `src/lib/data/sources/sdg.ts`; `no-unused-vars` and `no-require-imports` mostly in `scripts/`; the remaining `set-state-in-effect` in `indicator-trend-dialog.tsx`, plus `react-hooks/immutability` in `world-map-card.tsx`).
 
 ## Completed
@@ -120,7 +122,14 @@ A review pass over the AI surface produced these changes. The compare-page work 
 - Compare-page fetch URLs use `encodeURIComponent`, and `pickTop` honours `?country=` only when it is a real ISO3 code.
 - **Secrets**: `.env*` is gitignored and `.env.example` ships empty placeholders. A real `gsk_…` key briefly pasted into `.env.example` was reverted and never committed (`git log -S gsk_` → no commits on any ref) — **rotate it anyway** if it was ever shared. `shadcn` (a CLI) moved from `dependencies` to `devDependencies`.
 
-Verified after the change: `tsc` clean, `eslint` clean on every touched file, **75 vitest tests / 11 files**, **25 e2e** with `consoleErrors=0` (so the CSP breaks nothing), `?limit=abc` → `400`, and the 16th chat request in a minute → `429`.
+Verified after the change: `tsc` clean, `eslint` clean on every touched file, **98 vitest tests / 12 files**, **25 e2e** with `consoleErrors=0` (so the CSP breaks nothing), `?limit=abc` → `400`, and the 16th chat request in a minute → `429`.
+
+### AI model resolution (`src/lib/ai/client.ts`)
+The AI features broke because the client hardcoded `llama-3.3-70b-versatile`; Groq returned **404** (that model is not served on the key) and `chat()` did `if (!res.ok) return null`, so the route blamed a *missing key* for a *dead model*. Fixed by resolving the model at runtime:
+- `GROQ_MODEL` (optional override) → first of `PREFERRED_MODELS` the key serves → first non-excluded served model → `FALLBACK_MODEL`. Sourced from `GET /openai/v1/models`, cached 10 min, in-flight de-duplicated, `active: false` entries filtered (Groq lists decommissioned models), and audio/guard/`gpt-oss` models excluded (`gpt-oss` returns `content: ""` because reasoning eats the token budget — indistinguishable from failure).
+- Every call is bounded by `AbortSignal.timeout`. A 404 clears the cache and retries once with auto-resolution, so a mid-window decommission **or** a typo'd `GROQ_MODEL` self-heals.
+- `chatDetailed()` returns a discriminated result with a real `reason` (`missing-key` / `unauthorized` / `model-unavailable` / `rate-limited` / `bad-request` / `empty-response` / `upstream-error`) plus `chatFailureMessage(reason)` for the UI. Both routes log the reason (`JSON.stringify`, key never included) and return the truthful message. `country-insight.tsx` and `comparison-tool.tsx` must **trust the server's message** rather than inferring the cause from the status code — that inference is what mislabelled the 404 as a missing key.
+- Tests: `src/lib/ai/client.test.ts` (26) cover every reason, model resolution, the `active`/exclusion filters, cache reuse + 404 self-heal, timeouts, and that the key can never appear in a result. `src/app/api/ai/insights/route.test.ts` pins the `reason → status` mapping (429 rate-limited, 502 upstream/bad-request, 503 otherwise).
 
 ## Remaining
 - Rate-limit buckets are in-memory (per instance, reset on deploy) — move them to Vercel KV/Upstash before treating the limit as a real quota.

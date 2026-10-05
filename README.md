@@ -24,7 +24,7 @@ hackathon demo — clean data, clean code, shippable today.
 | Report card | `/report-card` — A–F grade, per-category scores, Print/CSV export | ✅ |
 | API | `/api/indicators/series`, `/api/indicators/leaderboard`, `/api/rankings`, `/api/scatter`, `/api/ai/*` | ✅ |
 | Design system | shadcn/ui + Tailwind v4 + Recharts + D3 + Motion (springs) | ✅ |
-| Tests | 75 vitest tests / 11 files + 25 Playwright e2e tests / 3 files | ✅ |
+| Tests | 98 vitest tests / 12 files + 25 Playwright e2e tests / 3 files | ✅ |
 | AI insights | Groq RAG chat with citations (`/chat`) + `/api/ai/insights` | ✅ |
 | Auth / users | — | ⏳ next |
 | Production DB (Supabase PG) | ⚠️ old Supabase host is dead (ENOTFOUND); production `DATABASE_URL` unverified — SQLite can't run on Vercel serverless | ⚠️ blocked |
@@ -120,7 +120,7 @@ npx next dev -p 3456
 ## Tests
 
 ```bash
-npm test               # vitest run → 75 tests / 11 files
+npm test               # vitest run → 98 tests / 12 files
 npx next dev -p 3456   # e2e needs the dev server already running (no webServer block)
 npx playwright test    # 25 tests / 3 files (flows.spec.ts, compare-tokens.spec.ts, health.spec.ts)
 ```
