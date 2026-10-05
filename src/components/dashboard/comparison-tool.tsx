@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, type KeyboardEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -14,7 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Search, Sparkles, X } from "lucide-react";
 import { isHigherBetter } from "@/lib/rank-direction";
 import { fmtCompact, fmtValue } from "@/lib/format";
-import { FlowChips } from "@/components/ui/flow-chips";
+import { AnimatePresence, motion } from "motion/react";
+import { FlowChips, flowTransition } from "@/components/ui/flow-chips";
 
 type Country = { iso3: string; name: string; region: string | null };
 type Indicator = { id: string; name: string; category: string; unit: string | null };
@@ -48,23 +49,34 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
   const [insightLoading, setInsightLoading] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
   const [pickingTop, setPickingTop] = useState(false);
-  // Timestamp of the last manual chip click — lets an in-flight auto-pick know it
-  // must not overwrite a choice the user just made.
+  // Timestamp of the last manual chip/token click — lets an in-flight auto-pick
+  // know it must not overwrite a choice the user just made.
   const lastUserEditRef = useRef(0);
-  const chipRowRef = useRef<HTMLDivElement>(null);
 
-  const countryMap = new Map(countries.map((c) => [c.iso3, c.name]));
+  const countryMap = useMemo(() => new Map(countries.map((c) => [c.iso3, c.name])), [countries]);
   const allIndicators = Object.values(indicatorsByCategory).flat();
   const currentIndicator = allIndicators.find((i) => i.id === selectedIndicator);
 
-  // Chip row items are recomputed only when the search text (or data) changes,
-  // so chart/loading re-renders don't reallocate 217 entries.
-  const countryChipItems = useMemo(
+  const selectedSet = useMemo(() => new Set(selectedCountries), [selectedCountries]);
+
+  // Selected countries render as removable tokens inside the search field, so the
+  // list below only ever holds unselected countries — it never has to reorder,
+  // which means the scroll position never jumps.
+  const selectedTokens = useMemo(
+    () =>
+      selectedCountries
+        .filter((iso3) => countryMap.has(iso3))
+        .map((iso3) => ({ value: iso3, label: countryMap.get(iso3) as string })),
+    [selectedCountries, countryMap],
+  );
+
+  const availableCountryItems = useMemo(
     () =>
       countries
+        .filter((c) => !selectedSet.has(c.iso3))
         .filter((c) => !countrySearch || c.name.toLowerCase().includes(countrySearch.toLowerCase()))
         .map((c) => ({ value: c.iso3, label: c.name })),
-    [countries, countrySearch],
+    [countries, selectedSet, countrySearch],
   );
 
   // When the indicator changes, auto-pick the top-N countries for it.
@@ -131,19 +143,20 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
     return () => { cancelled = true; };
   }, [selectedCountries, selectedIndicator]);
 
-  const toggleCountry = useCallback(
-    (iso3: string) => {
-      lastUserEditRef.current = Date.now();
-      const isSelecting = !selectedCountries.includes(iso3);
-      setSelectedCountries((prev) =>
-        prev.includes(iso3) ? prev.filter((c) => c !== iso3) : [...prev, iso3],
-      );
-      // Selected chips flow to the top of the scrollable row — bring them into
-      // view before the commit, so motion's FLIP measures the same screen space.
-      if (isSelecting) chipRowRef.current?.scrollTo({ top: 0 });
-    },
-    [selectedCountries],
-  );
+  const toggleCountry = useCallback((iso3: string) => {
+    lastUserEditRef.current = Date.now();
+    setSelectedCountries((prev) =>
+      prev.includes(iso3) ? prev.filter((c) => c !== iso3) : [...prev, iso3],
+    );
+  }, []);
+
+  // Tag-input behaviour: Backspace on an empty query drops the last token.
+  const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && countrySearch === "" && selectedCountries.length > 0) {
+      e.preventDefault();
+      toggleCountry(selectedCountries[selectedCountries.length - 1]);
+    }
+  };
 
   const chartData = (() => {
     const years = new Set<number>();
@@ -210,31 +223,57 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
               <label htmlFor="country-search" className="text-sm font-medium mb-2 block">Select countries</label>
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            {/* Token field: selected countries live inside the search box */}
+            <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-lg border border-input bg-transparent px-2 py-1.5 focus-within:ring-3 focus-within:ring-ring/50">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <AnimatePresence initial={false}>
+                {selectedTokens.map((token) => (
+                  <motion.span
+                    key={token.value}
+                    layout
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={flowTransition}
+                    className="inline-flex items-center gap-1 rounded-full bg-blue-500 py-0.5 pl-2 pr-1 text-xs font-medium text-white"
+                  >
+                    {token.label}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${token.label}`}
+                      onClick={() => toggleCountry(token.value)}
+                      className="rounded-full p-0.5 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </motion.span>
+                ))}
+              </AnimatePresence>
               <input
                 id="country-search"
                 type="text"
-                placeholder="Search countries..."
+                placeholder={selectedTokens.length === 0 ? "Search countries..." : "Add country…"}
                 value={countrySearch}
                 onChange={(e) => setCountrySearch(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent pl-9 pr-8 py-2 text-sm"
+                onKeyDown={handleSearchKeyDown}
+                className="min-w-24 flex-1 border-0 bg-transparent px-1 py-0.5 text-sm outline-none placeholder:text-muted-foreground"
               />
               {countrySearch && (
                 <button
-                  onClick={() => setCountrySearch("")}
+                  type="button"
                   aria-label="Clear country search"
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  onClick={() => setCountrySearch("")}
+                  className="shrink-0 rounded-full p-1 hover:bg-accent"
                 >
                   <X className="h-4 w-4 text-muted-foreground" />
                 </button>
               )}
             </div>
-            <div ref={chipRowRef} className="max-h-48 overflow-y-auto">
+            <div className="max-h-48 overflow-y-auto">
               <FlowChips
                 className="flex flex-wrap content-start gap-2"
-                label="Select countries"
-                items={countryChipItems}
+                label="Available countries"
+                items={availableCountryItems}
                 selected={selectedCountries}
                 onToggle={toggleCountry}
               />

@@ -4,8 +4,8 @@ import { memo, useMemo, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
-/** Shared spring so every chip row in the app settles the same way. */
-const flowTransition = { type: "spring", stiffness: 420, damping: 30 } as const;
+/** Shared spring so every chip/pill row in the app settles the same way. */
+export const flowTransition = { type: "spring", stiffness: 420, damping: 30 } as const;
 const checkTransition = { type: "spring", stiffness: 520, damping: 22 } as const;
 
 export type FlowChipItem = { value: string; label: ReactNode };

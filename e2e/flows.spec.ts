@@ -132,13 +132,16 @@ test.describe("India Dashboard — critical user flows", () => {
       { timeout: 30_000 },
     );
 
-    // India is always part of the auto-picked selection, and the chip must be
-    // rendered in its selected state (FlowChips sets aria-pressed on the button).
-    const indiaBtn = page.locator("button", { hasText: "India" }).first();
-    await expect(indiaBtn).toBeVisible();
-    await expect(indiaBtn).toHaveAttribute("aria-pressed", "true");
-    const indiaClass = await indiaBtn.getAttribute("class");
-    expect(indiaClass).toContain("bg-blue-500");
+    // India is always part of the auto-picked selection — rendered as a removable
+    // token inside the "Search countries" field (not as a list chip).
+    const indiaToken = page.getByRole("button", { name: "Remove India" });
+    await expect(indiaToken).toBeVisible();
+    const pillClass = await indiaToken.evaluate((el) => el.parentElement?.className ?? "");
+    expect(pillClass).toContain("bg-blue-500");
+    // Selected countries move out of the list below, so they must not be there
+    await expect(
+      page.locator('[aria-label="Available countries"] button').filter({ hasText: "India" }),
+    ).toHaveCount(0);
     await expect(page.getByText("5 selected ·")).toBeVisible();
 
     // Indicator select defaults to GDP
