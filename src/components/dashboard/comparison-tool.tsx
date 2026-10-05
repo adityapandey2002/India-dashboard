@@ -83,11 +83,16 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
   useEffect(() => {
     let cancelled = false;
     const startedAt = Date.now();
-    const urlCountry = searchParams.get("country");
+    // Only honour ?country= when it is a real ISO3 code — it is interpolated into
+    // request URLs below.
+    const urlCountryParam = searchParams.get("country");
+    const urlCountry = urlCountryParam && countryMap.has(urlCountryParam) ? urlCountryParam : null;
     const pickTop = async () => {
       setPickingTop(true);
       try {
-        const res = await fetch(`/api/indicators/leaderboard?indicator=${selectedIndicator}&limit=${TOP_COUNTRY_COUNT}`);
+        const res = await fetch(
+          `/api/indicators/leaderboard?indicator=${encodeURIComponent(selectedIndicator)}&limit=${TOP_COUNTRY_COUNT}`,
+        );
         if (!res.ok) return;
         const json = await res.json();
         const rows = (json.data ?? json.leaderboard ?? []) as Array<{ iso3?: string; country_iso3?: string }>;
@@ -121,7 +126,9 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
       try {
         const results = await Promise.all(
           selectedCountries.map(async (iso3) => {
-            const res = await fetch(`/api/indicators/series?country=${iso3}&indicator=${selectedIndicator}`);
+            const res = await fetch(
+              `/api/indicators/series?country=${encodeURIComponent(iso3)}&indicator=${encodeURIComponent(selectedIndicator)}`,
+            );
             if (!res.ok) throw new Error(`Failed to fetch data for ${iso3}`);
             const json = await res.json();
             return { iso3, points: (json.data ?? []).filter((p: { value: number | null }) => p.value != null) as SeriesPoint[] };
@@ -521,7 +528,6 @@ export function CompareTool({ countries, indicatorsByCategory }: Props) {
           ) : (
             <p className="text-sm text-muted-foreground">
               Click &ldquo;Generate insight&rdquo; to get an AI-powered analysis of this comparison.
-              {!process.env.NEXT_PUBLIC_GROQ_KEY && " Set GROQ_API_KEY in your environment to enable."}
             </p>
           )}
         </CardContent>

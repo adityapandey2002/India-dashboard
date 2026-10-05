@@ -19,11 +19,12 @@ hackathon demo — clean data, clean code, shippable today.
 | Indicator registry | 123 indicators, categorized, source-mapped (`src/lib/data/indicators.ts`) | ✅ |
 | Home page | KPI cards, 4 multi-country trend charts, interactive D3 world map, scatter correlation | ✅ |
 | Explore / Indicator / Country | `/explore` (category filter + search), `/indicator/[id]`, `/country/[iso3]` (radar vs India + on-demand AI analysis) | ✅ |
-| Compare page | `/compare` — multi-country line/bar/radar + delta highlights + AI insight panel | ✅ |
+| Compare page | `/compare` — multi-country line/bar/radar + delta highlights + AI insight panel; countries picked as removable tokens in the search field | ✅ |
 | Rankings page | `/rankings` — sortable world rankings, India rank-over-time | ✅ |
 | Report card | `/report-card` — A–F grade, per-category scores, Print/CSV export | ✅ |
 | API | `/api/indicators/series`, `/api/indicators/leaderboard`, `/api/rankings`, `/api/scatter`, `/api/ai/*` | ✅ |
-| Design system | shadcn/ui + Tailwind v4 + Recharts + D3 | ✅ |
+| Design system | shadcn/ui + Tailwind v4 + Recharts + D3 + Motion (springs) | ✅ |
+| Tests | 75 vitest tests / 11 files + 25 Playwright e2e tests / 3 files | ✅ |
 | AI insights | Groq RAG chat with citations (`/chat`) + `/api/ai/insights` | ✅ |
 | Auth / users | — | ⏳ next |
 | Production DB (Supabase PG) | ⚠️ old Supabase host is dead (ENOTFOUND); production `DATABASE_URL` unverified — SQLite can't run on Vercel serverless | ⚠️ blocked |
@@ -87,8 +88,10 @@ hackathon demo — clean data, clean code, shippable today.
 # 1. install
 npm install
 
-# 2. copy the env template and fill in API keys
-cp .env.example .env.local
+# 2. copy the env template to .env and fill in API keys
+#    (.env, not .env.local — the ingest/status/embedding scripts load dotenv,
+#     which reads .env only)
+cp .env.example .env
 # → set GROQ_API_KEY (chat) and optionally HF_API_KEY (embeddings).
 #   Leave DATABASE_URL commented out to run on local SQLite.
 
@@ -99,9 +102,27 @@ npm run ingest
 # 4. verify the data (optional but handy)
 npm run status
 
-# 5. start the dev server
-npm run dev
-# → open http://localhost:3000
+# 5. start the dev server on port 3456
+npx next dev -p 3456
+# → open http://localhost:3456
+```
+
+> ⚠️ **Port 3456, not 3000.** `playwright.config.ts` expects
+> `http://localhost:3456`, and localhost:3000's IPv6 loopback is currently taken
+> by another project's Vite server on this machine. `npm run dev` is still plain
+> `next dev` on :3000, so pass `-p 3456` explicitly for e2e runs.
+>
+> `.env` (gitignored) is what the dev server, `npm run ingest`,
+> `npm run index-embeddings` and `npm run status` read — keep the real
+> `GROQ_API_KEY` there. `.env.example` stays a placeholder template; never copy a
+> live key into it.
+
+## Tests
+
+```bash
+npm test               # vitest run → 75 tests / 11 files
+npx next dev -p 3456   # e2e needs the dev server already running (no webServer block)
+npx playwright test    # 25 tests / 3 files (flows.spec.ts, compare-tokens.spec.ts, health.spec.ts)
 ```
 
 ## Build for production
@@ -124,6 +145,7 @@ india-dashboard/
 │   │   ├── indicator/[id]/page.tsx # /indicator/:id — per-indicator detail
 │   │   ├── country/[iso3]/page.tsx # /country/:iso3 — profile + radar vs India
 │   │   ├── compare/page.tsx        # /compare — multi-country charts + AI insights
+│   │   │                           #   (country picker = tokens in the search field)
 │   │   ├── rankings/page.tsx       # /rankings — sortable world ranking table
 │   │   ├── report-card/page.tsx    # /report-card — grades + print/CSV export
 │   │   ├── chat/page.tsx           # /chat — RAG chatbot
@@ -132,6 +154,7 @@ india-dashboard/
 │   │                               #   rankings, scatter, ai/chat, ai/insights
 │   ├── components/
 │   │   ├── ui/                     # shadcn/ui (button, card, table, ...)
+│   │   │   └── flow-chips.tsx      # shared animated chip row (motion/react springs)
 │   │   ├── dashboard/              # stat-card, trend-chart, world-map-card, scatter-chart, ...
 │   │   ├── chat/                   # chat-interface.tsx
 │   │   └── site-nav.tsx            # responsive nav
@@ -144,7 +167,7 @@ india-dashboard/
 │   │   │   ├── indicators.ts       # the 123-indicator registry
 │   │   │   └── sources/            # world-bank.ts, undp.ts, owid-generic.ts, ...
 │   │   ├── ai/                     # embeddings, vector-search, Groq client
-│   │   ├── format.ts               # shared fmtValue / fmtMoney (compact numbers)
+│   │   ├── format.ts               # shared fmtValue / fmtCompact / fmtMoney (compact numbers)
 │   │   ├── report-card.ts          # A–F grade + score helpers
 │   │   ├── rankings.ts             # ranking helpers (ties share rank)
 │   │   ├── trend.ts                # shared YoY trend classification (0.5% flat)
@@ -158,10 +181,12 @@ india-dashboard/
 │   ├── ingest-new.ts               # fast path for newest sources
 │   ├── index-embeddings.ts         # TF-IDF search index
 │   └── status.ts                   # data coverage report
+├── e2e/                            # Playwright specs (flows.spec.ts, health.spec.ts)
 ├── data/                           # SQLite files (gitignored)
-├── .env / .env.example             # gitignored except .env.example
+├── .env / .env.example             # gitignored except .env.example (keys live in .env)
 ├── next.config.ts
 ├── vitest.config.ts
+├── playwright.config.ts            # e2e, baseURL http://localhost:3456
 ├── package.json
 └── README.md
 ```
@@ -207,6 +232,8 @@ india-dashboard/
 - **TypeScript strict** — bugs caught at compile time, judges love it.
 - **Tailwind + shadcn/ui** — copy-paste components, no locked-in dep, fast to customize.
 - **Recharts** — React-native charts, plays well with server components.
+- **Motion (`motion/react`)** — spring layout animations for the shared
+  `FlowChips` chip row on `/compare`; ~1 file, no animation framework lock-in.
 - **Node's built-in SQLite** — zero install, zero compile pain. Supabase PG is
   supported through `DATABASE_URL` auto-detect in `src/lib/db/client.ts`.
 - **Zustand / TanStack Query** — ready when we need client state / cache.

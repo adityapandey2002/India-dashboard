@@ -121,16 +121,20 @@ test.describe("India Dashboard — critical user flows", () => {
   test("3. Compare /compare loads with the tool and default countries selected", async ({ page }) => {
     const collector = installCollectors(page);
 
+    // Register the listener BEFORE goto: the client can fire the fetch before a
+    // post-goto waitForResponse is attached (that race made this test flaky).
+    const seriesResponse = page.waitForResponse(
+      (resp) => resp.url().includes("/api/indicators/series") && resp.status() === 200,
+      { timeout: 30_000 },
+    );
+
     await page.goto("/compare", { waitUntil: "load" });
     await expect(
       page.getByRole("heading", { level: 1 }),
     ).toHaveText("Country comparison");
 
     // Wait for series data to load for the default indicator
-    await page.waitForResponse((resp) =>
-      resp.url().includes("/api/indicators/series") && resp.status() === 200,
-      { timeout: 30_000 },
-    );
+    await seriesResponse;
 
     // India is always part of the auto-picked selection — rendered as a removable
     // token inside the "Search countries" field (not as a list chip).
@@ -276,15 +280,18 @@ test.describe("India Dashboard — critical user flows", () => {
     const collector = installCollectors(page);
 
     // Use GDP so India is guaranteed to be in the ranking table.
+    // Listener first — see the note in test 3 about the post-goto race.
+    const rankingsResponse = page.waitForResponse(
+      (resp) => resp.url().includes("/api/rankings") && resp.status() === 200,
+      { timeout: 30_000 },
+    );
+
     await page.goto("/rankings?indicator=gdp_current_usd", { waitUntil: "load" });
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Global Rankings",
     );
 
-    await page.waitForResponse(
-      (resp) => resp.url().includes("/api/rankings") && resp.status() === 200,
-      { timeout: 30_000 },
-    );
+    await rankingsResponse;
     await expect(
       page.locator("tbody tr").first(),
     ).toBeVisible({ timeout: 20_000 });

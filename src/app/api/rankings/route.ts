@@ -9,39 +9,47 @@ export async function GET(req: NextRequest) {
   if (!indicatorId) {
     return NextResponse.json({ error: "indicator parameter is required" }, { status: 400 });
   }
-
-  const [indicator, latest, countries] = await Promise.all([
-    getIndicator(indicatorId),
-    getRankingsForIndicator(indicatorId),
-    getAllCountries(),
-  ]);
-  if (!indicator) {
-    return NextResponse.json({ error: "unknown indicator" }, { status: 404 });
+  if (!/^[a-z0-9_]+$/i.test(indicatorId)) {
+    return NextResponse.json({ error: "indicator must be a valid indicator id" }, { status: 400 });
   }
 
-  const higherIsBetter = isHigherBetter(indicatorId);
-  const ranking = computeRankings(latest, higherIsBetter);
-  const indiaRow = ranking.find((r) => r.iso3 === "IND") ?? null;
+  try {
+    const [indicator, latest, countries] = await Promise.all([
+      getIndicator(indicatorId),
+      getRankingsForIndicator(indicatorId),
+      getAllCountries(),
+    ]);
+    if (!indicator) {
+      return NextResponse.json({ error: "unknown indicator" }, { status: 404 });
+    }
 
-  const indiaSeries = (await getIndicatorSeries("IND", indicatorId))
-    .filter((p) => p.value != null)
-    .map((p) => ({ year: p.year, value: p.value! }));
-  const history = computeRankHistory(indiaSeries, higherIsBetter);
+    const higherIsBetter = isHigherBetter(indicatorId);
+    const ranking = computeRankings(latest, higherIsBetter);
+    const indiaRow = ranking.find((r) => r.iso3 === "IND") ?? null;
 
-  const nameByIso = new Map(countries.map((c) => [c.iso3, c.name]));
+    const indiaSeries = (await getIndicatorSeries("IND", indicatorId))
+      .filter((p) => p.value != null)
+      .map((p) => ({ year: p.year, value: p.value! }));
+    const history = computeRankHistory(indiaSeries, higherIsBetter);
 
-  return NextResponse.json({
-    indicator: {
-      id: indicator.id,
-      name: indicator.name,
-      unit: indicator.unit,
-      category: indicator.category,
-      description: indicator.description,
-    },
-    higherIsBetter,
-    ranking,
-    india: indiaRow,
-    history,
-    names: Object.fromEntries(nameByIso),
-  });
+    const nameByIso = new Map(countries.map((c) => [c.iso3, c.name]));
+
+    return NextResponse.json({
+      indicator: {
+        id: indicator.id,
+        name: indicator.name,
+        unit: indicator.unit,
+        category: indicator.category,
+        description: indicator.description,
+      },
+      higherIsBetter,
+      ranking,
+      india: indiaRow,
+      history,
+      names: Object.fromEntries(nameByIso),
+    });
+  } catch (err) {
+    console.error("[api/rankings]", err);
+    return NextResponse.json({ error: "Failed to load rankings" }, { status: 500 });
+  }
 }
