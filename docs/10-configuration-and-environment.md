@@ -8,6 +8,7 @@
 | `DATABASE_URL` | No | Postgres connection string; if set, switches driver to PG | unset (SQLite) |
 | `GROQ_API_KEY` | No* | Groq LLM for chat/insights | unset → chat returns null |
 | `HF_API_KEY` | No | HuggingFace embeddings | unset → embeddings disabled |
+| `GROQ_MODEL` | No | Pin the Groq chat model (optional); leave blank to auto-detect (recommended) | unset → auto-detect |
 
 \* Required for AI features to work, but app runs without.
 

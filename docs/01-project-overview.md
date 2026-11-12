@@ -6,12 +6,10 @@
 
 ## What it does
 
-A full-stack web dashboard that tracks India's standing across ~120 global indicators
-(economy, health, education, environment, governance, technology, equality, safety, digital
-government) sourced from public datasets (World Bank, WHO, UNDP, OWID, WGI, Transparency
-International, Numbeo, and ~30 more). For each indicator it shows India's value, global
-rank, trend, and comparison with other countries; provides rankings, report cards, and an
-AI chatbot with citations.
+A full-stack web dashboard that tracks India's standing across 123 registered global
+indicators (117 currently with data — economy, health, education, environment, governance,
+technology, equality, safety, digital government) sourced from public datasets (World Bank,
+WHO, UNDP, OWID, WGI, Transparency International, Numbeo, and ~30 more).
 
 ## Problem it solves
 
@@ -43,4 +41,4 @@ dashboard consolidates them into one queryable, visual surface.
 
 - Implemented: home, explore, indicator detail, country profile, compare, rankings, report card, methodology, chat, 9 API routes.
 - Not implemented: authentication/users, production PG DB.
-- 20 of 120 indicators currently have 0 data points locally (10 no usable open source; 10 fetchers exist but need re-ingest).
+- 6 of 123 indicators currently have 0 data points locally (broadband_speed, ccpi, digital_competitiveness, epi, qs_rank, startup_ecosystem).
