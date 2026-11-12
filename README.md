@@ -1,243 +1,211 @@
 # India in the World — Global Progress Dashboard
 
-> A live dashboard that tracks India's rankings across 123 registered global
-> indicators (117 currently with data — economy, health, education, environment,
-> governance, technology, and more), sourced from trusted public datasets like
-> the World Bank, WHO, UNDP, OWID, and Numbeo.
+[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org)
+[![Tailwind](https://img.shields.io/badge/Tailwind-4-38bdf8)](https://tailwindcss.com)
+
+
+> A live dashboard tracking India's standing across ~120 global indicators
+> (economy, health, education, environment, governance, technology, equality, safety,
+> digital government), sourced from trusted public datasets — World Bank, WHO, UNDP,
+> OWID, WGI, Transparency International, Numbeo, and ~30 more.
 
 Built for the **Development Challenge 2026**. Designed as a real product, not a
 hackathon demo — clean data, clean code, shippable today.
 
 ---
 
-## What's in here
+## Overview
 
-| Area | What we have | Status |
-|---|---|---|
-| Data layer | SQLite locally (`node:sqlite`) + optional Supabase PG via `DATABASE_URL` auto-detect (`src/lib/db/client.ts`) | ✅ |
-| Data ingestion | 34 sources → 217 countries, 252,834 data points (WB, UNDP, WHO, OWID, WGI, TI, Numbeo, …) | ✅ |
-| Indicator registry | 123 indicators, categorized, source-mapped (`src/lib/data/indicators.ts`) | ✅ |
-| Home page | KPI cards, 4 multi-country trend charts, interactive D3 world map, scatter correlation | ✅ |
-| Explore / Indicator / Country | `/explore` (category filter + search), `/indicator/[id]`, `/country/[iso3]` (radar vs India + on-demand AI analysis) | ✅ |
-| Compare page | `/compare` — multi-country line/bar/radar + delta highlights + AI insight panel; countries picked as removable tokens in the search field | ✅ |
-| Rankings page | `/rankings` — sortable world rankings, India rank-over-time | ✅ |
-| Report card | `/report-card` — A–F grade, per-category scores, Print/CSV export | ✅ |
-| API | `/api/indicators/series`, `/api/indicators/leaderboard`, `/api/rankings`, `/api/scatter`, `/api/ai/*` | ✅ |
-| Design system | shadcn/ui + Tailwind v4 + Recharts + D3 + Motion (springs) | ✅ |
-| Tests | 98 vitest tests / 12 files + 25 Playwright e2e tests / 3 files | ✅ |
-| AI insights | Groq RAG chat with citations (`/chat`) + `/api/ai/insights` | ✅ |
-| Auth / users | — | ⏳ next |
-| Production DB (Supabase PG) | ⚠️ old Supabase host is dead (ENOTFOUND); production `DATABASE_URL` unverified — SQLite can't run on Vercel serverless | ⚠️ blocked |
+**What it does:** aggregates India's global rankings across ~120 indicators into one
+queryable, visual surface with trend charts, world maps, country profiles, rankings,
+report cards, and an AI chatbot with citations.
 
-> ⚠️ **Deployment status:** the original Supabase PG host is dead (DNS no longer
-> resolves, ENOTFOUND), and the Vercel env vars likely still point at it — until
-> replaced, deployed pages 500 ("Error in Server Components render"). Local dev
-> runs on SQLite and is unaffected. See `AGENTS.md` → **Known issues / deployment
-> status**.
+**Problem solved:** no single free place consolidates India's global rankings with
+consistent definitions, history, and comparisons.
 
----
+**Audience:** citizens, journalists, researchers, policymakers, developers, contributors.
 
-## Architecture (in plain English)
+**Value proposition:** one indicator registry drives both ingestion and UI; auto-detecting
+DB driver (SQLite local / Postgres remote); server components first; free-first stack.
 
-```
-   ┌─────────────────────────┐
-   │   Public data sources   │  (World Bank API, WHO, UNDP, OWID, Numbeo, ...)
-   └────────────┬────────────┘
-                │  HTTP / scrape
-                ▼
-   ┌─────────────────────────┐
-   │   scripts/ingest.ts     │  ← run with `npm run ingest`
-   │   (TypeScript, parallel)│     parallel fetches, idempotent UPSERTs
-   └────────────┬────────────┘
-                │
-                ▼
-   ┌─────────────────────────┐
-   │ data/india.db (SQLite)  │  ← SQLite local; set DATABASE_URL → Supabase PG (auto-detect)
-   └────────────┬────────────┘
-                │
-                ▼
-   ┌─────────────────────────┐
-   │  src/lib/db/queries.ts  │  ← single source of truth for DB access
-   └────────────┬────────────┘
-                │
-                ▼
-   ┌─────────────────────────┐
-   │  src/app/  (Next.js 16) │  ← pages + API routes
-   │  src/components/        │  ← shadcn/ui + custom dashboards
-   └─────────────────────────┘
-```
+## Features
 
-**Why this shape?**
+**Core**
+- 121 registered indicators across 10 categories; ~105k data points; 217 countries; 34 sources.
+- Auto-detecting DB driver (SQLite local / Supabase PG remote).
 
-- **Server components first.** Pages fetch data on the server, send only the
-  shape the client needs. First paint is fast and SEO-friendly.
-- **One DB layer.** `src/lib/db/queries.ts` is the *only* place that knows
-  SQL, and `src/lib/db/client.ts` auto-detects the driver: local SQLite when no
-  `DATABASE_URL` is set, Supabase PG when it is.
-- **One indicator registry.** `src/lib/data/indicators.ts` lists all 123
-  metrics with their source + upstream ID. Add an indicator there and the
-  ingestion script picks it up automatically.
-- **Free-first.** Local SQLite, free-tier Vercel, free AI APIs (Groq,
-  HuggingFace). We pay for a domain and, later, Claude API.
+**User-facing**
+- Home: 12 KPI cards with trend arrows, 4 multi-country trend charts, D3 world map, scatter correlation, GDP leaderboard.
+- Explore: category filter + search with data coverage.
+- Indicator detail: India snapshot, global rank, trend, guide, chart, historical events, top-10, related.
+- Country profile: score/grade, radar vs India, top/bottom performers, trend vs India.
+- Compare: multi-country line/bar/radar, deltas, table, AI insight.
+- Rankings: sortable world table, India rank-over-time.
+- Report card: A–F grade, per-category scores, India-vs-China radar, Print/PDF + CSV export.
+- Methodology page.
+- AI chat with citations.
 
----
+**Technical**
+- Server components first; client components for interactivity.
+- Local TF-IDF search (no API key).
+- Groq RAG chat with citations.
+- D3 choropleth world map with year/indicator selectors.
+- Scatter correlation with Pearson r.
 
-## Run it locally
+**Security**
+- None implemented (no auth). See [docs/15](./docs/15-security-documentation.md).
 
-```bash
-# 1. install
-npm install
+**Status labels**
+- ✅ Implemented: all pages/APIs above.
+- ⏳ Planned: authentication/users, production PG DB.
+- ⚠️ Blocked: production DB (original Supabase host dead).
 
-# 2. copy the env template to .env and fill in API keys
-#    (.env, not .env.local — the ingest/status/embedding scripts load dotenv,
-#     which reads .env only)
-cp .env.example .env
-# → set GROQ_API_KEY (chat) and optionally HF_API_KEY (embeddings).
-#   Leave DATABASE_URL commented out to run on local SQLite.
+## Technology stack
 
-# 3. fetch data (34 sources → data/india.db: 217 countries,
-#    123 indicators, 252k data points)
-npm run ingest
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| UI | React 19, Tailwind 4, shadcn/ui (base-ui) |
+| Charts | Recharts 3, D3 (d3-geo, d3-scale) |
+| Language | TypeScript 5 (strict) |
+| DB (local) | node:sqlite |
+| DB (remote) | pg (Supabase Postgres) |
+| AI | Groq (LLM), HuggingFace (optional embeddings), local TF-IDF |
+| Testing | Vitest 4, Playwright 1.63 |
+| Tooling | tsx, ESLint 9, Vercel CLI |
 
-# 4. verify the data (optional but handy)
-npm run status
+Full details: [docs/02](./docs/02-technology-stack.md).
 
-# 5. start the dev server on port 3456
-npx next dev -p 3456
-# → open http://localhost:3456
+## Architecture overview
+
+Monolithic full-stack Next.js app: pages (server components) → `src/lib/db/queries.ts` →
+auto-detecting client → SQLite/Postgres. Ingestion pipeline (`scripts/`) populates DB from
+public sources. AI chat uses TF-IDF over an `embeddings` table plus Groq.
+
+```mermaid
+flowchart TD
+  Sources[Public data sources] --> Ingest[scripts/ingest.ts]
+  Ingest --> DB[(SQLite / Postgres)]
+  DB --> Queries[src/lib/db/queries.ts]
+  Queries --> Pages[src/app pages]
+  Queries --> API[src/app/api routes]
+  Pages --> UI[React UI]
+  API --> UI
+  UI --> Browser[Browser]
 ```
 
-> ⚠️ **Port 3456, not 3000.** `playwright.config.ts` expects
-> `http://localhost:3456`, and localhost:3000's IPv6 loopback is currently taken
-> by another project's Vite server on this machine. `npm run dev` is still plain
-> `next dev` on :3000, so pass `-p 3456` explicitly for e2e runs.
->
-> `.env` (gitignored) is what the dev server, `npm run ingest`,
-> `npm run index-embeddings` and `npm run status` read — keep the real
-> `GROQ_API_KEY` there. `.env.example` stays a placeholder template; never copy a
-> live key into it.
+Details: [docs/04](./docs/04-system-architecture.md).
 
-## Tests
-
-```bash
-npm test               # vitest run → 98 tests / 12 files
-npx next dev -p 3456   # e2e needs the dev server already running (no webServer block)
-npx playwright test    # 25 tests / 3 files (flows.spec.ts, compare-tokens.spec.ts, health.spec.ts)
-```
-
-## Build for production
-
-```bash
-npm run build   # ✓ clean build in ~10s
-npm start
-```
-
-## Project layout
+## Project structure
 
 ```
 india-dashboard/
 ├── src/
-│   ├── app/
-│   │   ├── layout.tsx              # root layout, fonts, SiteNav
-│   │   ├── globals.css             # Tailwind v4 + theme
-│   │   ├── page.tsx                # /  → India overview (KPIs, charts, world map)
-│   │   ├── explore/page.tsx        # /explore — category filter + search
-│   │   ├── indicator/[id]/page.tsx # /indicator/:id — per-indicator detail
-│   │   ├── country/[iso3]/page.tsx # /country/:iso3 — profile + radar vs India
-│   │   ├── compare/page.tsx        # /compare — multi-country charts + AI insights
-│   │   │                           #   (country picker = tokens in the search field)
-│   │   ├── rankings/page.tsx       # /rankings — sortable world ranking table
-│   │   ├── report-card/page.tsx    # /report-card — grades + print/CSV export
-│   │   ├── chat/page.tsx           # /chat — RAG chatbot
-│   │   ├── methodology/page.tsx    # /methodology
-│   │   └── api/                    # indicators/series, indicators/leaderboard,
-│   │                               #   rankings, scatter, ai/chat, ai/insights
-│   ├── components/
-│   │   ├── ui/                     # shadcn/ui (button, card, table, ...)
-│   │   │   └── flow-chips.tsx      # shared animated chip row (motion/react springs)
-│   │   ├── dashboard/              # stat-card, trend-chart, world-map-card, scatter-chart, ...
-│   │   ├── chat/                   # chat-interface.tsx
-│   │   └── site-nav.tsx            # responsive nav
-│   ├── lib/
-│   │   ├── db/
-│   │   │   ├── client.ts           # SQLite/PG auto-detect + bulkInsert
-│   │   │   ├── queries.ts          # all DB queries used by the app
-│   │   │   └── types.ts            # TypeScript shapes + row mappers
-│   │   ├── data/
-│   │   │   ├── indicators.ts       # the 123-indicator registry
-│   │   │   └── sources/            # world-bank.ts, undp.ts, owid-generic.ts, ...
-│   │   ├── ai/                     # embeddings, vector-search, Groq client
-│   │   ├── format.ts               # shared fmtValue / fmtCompact / fmtMoney (compact numbers)
-│   │   ├── report-card.ts          # A–F grade + score helpers
-│   │   ├── rankings.ts             # ranking helpers (ties share rank)
-│   │   ├── trend.ts                # shared YoY trend classification (0.5% flat)
-│   │   └── rank-direction.ts       # which indicators are lower-is-better
-│   └── test/
-│       └── setup.ts                # Vitest setup (jsdom)
-├── src/types/
-│   └── node-sqlite.d.ts            # local type defs for node:sqlite
-├── scripts/
-│   ├── ingest.ts                   # full data ingestion (all sources)
-│   ├── ingest-new.ts               # fast path for newest sources
-│   ├── index-embeddings.ts         # TF-IDF search index
-│   └── status.ts                   # data coverage report
-├── e2e/                            # Playwright specs (flows.spec.ts, health.spec.ts)
-├── data/                           # SQLite files (gitignored)
-├── .env / .env.example             # gitignored except .env.example (keys live in .env)
-├── next.config.ts
-├── vitest.config.ts
-├── playwright.config.ts            # e2e, baseURL http://localhost:3456
-├── package.json
-└── README.md
+│   ├── app/            # pages + API routes
+│   ├── components/     # ui + dashboard widgets
+│   └── lib/            # db, data, ai, helpers
+├── scripts/            # ingest, index-embeddings, status
+├── e2e/                # Playwright tests
+├── data/               # SQLite (gitignored)
+├── docs/               # documentation
+└── public/             # static assets
 ```
 
-## The 123 indicators we support
+Details: [docs/03](./docs/03-project-structure.md).
 
-| Category | Indicators |
-|---|---|
-| 🛢 Economy | 22 |
-| 💻 Tech & Innovation | 17 |
-| 👥 Society | 15 |
-| 🏥 Healthcare | 14 |
-| 🌱 Environment | 13 |
-| 🏛 Governance | 10 |
-| 🎓 Education | 10 |
-| 🛡 Safety | 8 |
-| ⚖ Equality | 9 |
-| 🌐 Digital Gov | 5 |
+## Prerequisites
 
-> 117 of the 123 currently have data; the 6 zero-point indicators are listed by
-> `npm run status` (the 5 with no usable open dataset are called out in AGENTS.md).
-> We started with World Bank because it's the highest-coverage, no-auth source.
-> Every other source follows the same shape — drop a fetcher in
-> `src/lib/data/sources/`, add it to the registry, run `npm run ingest`.
+- Node.js 20+ (22+ for `node:sqlite`).
+- npm.
+- (Optional) Groq API key, HuggingFace token.
 
-## Next steps (the plan)
+## Installation and setup
 
-1. **Fix the production DB story** — the original Supabase project is dead (host
-   DNS no longer resolves). Create a new Supabase project, re-seed it
-   (`npm run ingest` with `DATABASE_URL` set), then update the Vercel env vars.
-   SQLite can't run on Vercel serverless (ephemeral FS; `data/*.db` is gitignored),
-   so production is blocked until this is done.
-2. **Source the remaining zero-point indicators** — 6 indicators currently at 0
-   points (see `npm run status`). The 5 with no usable open dataset and the
-   1 whose fetcher needs debugging (`epi`) are listed in AGENTS.md.
-3. **Auth / users** — next feature on the roadmap.
-4. **Keep improving the AI layer** — Groq RAG chat is live at `/chat`; integrate
-   more source documents, move to Claude when traffic warrants.
+```bash
+npm install
+cp .env.example .env
+# set GROQ_API_KEY (optional); leave DATABASE_URL commented for SQLite
+npm run ingest
+npm run status          # optional verify
+npm run index-embeddings # optional
+npm run dev             # http://localhost:3000
+```
 
-## Why these tools? (1-line each)
+Production build: `npm run build && npm start`.
 
-- **Next.js 16** — full-stack React, server components = fast + SEO-friendly.
-- **TypeScript strict** — bugs caught at compile time, judges love it.
-- **Tailwind + shadcn/ui** — copy-paste components, no locked-in dep, fast to customize.
-- **Recharts** — React-native charts, plays well with server components.
-- **Motion (`motion/react`)** — spring layout animations for the shared
-  `FlowChips` chip row on `/compare`; ~1 file, no animation framework lock-in.
-- **Node's built-in SQLite** — zero install, zero compile pain. Supabase PG is
-  supported through `DATABASE_URL` auto-detect in `src/lib/db/client.ts`.
-- **Zustand / TanStack Query** — ready when we need client state / cache.
+Full steps: [docs/11](./docs/11-installation-and-setup.md).
+
+## Environment variables
+
+| Variable | Required | Purpose | Default |
+|---|---|---|---|
+| `DATABASE_PATH` | No | SQLite file path | `./data/india.db` |
+| `DATABASE_URL` | No | Postgres connection (switches driver) | unset (SQLite) |
+| `GROQ_API_KEY` | No* | Groq LLM for chat/insights | unset → chat returns null |
+| `HF_API_KEY` | No | HuggingFace embeddings | unset → disabled |
+
+\* Required for AI features, but app runs without.
+
+Full: [docs/10](./docs/10-configuration-and-environment.md).
+
+## Running the application
+
+- Dev: `npm run dev`
+- Build: `npm run build`
+- Start (prod): `npm start`
+- Lint: `npm run lint`
+- Tests: `npm test`
+- Ingest: `npm run ingest` / `npm run ingest:new`
+- Index embeddings: `npm run index-embeddings`
+- Status: `npm run status`
+
+## API documentation
+
+Routes: `/api/scatter`, `/api/rankings`, `/api/indicators/series`, `/api/indicators/leaderboard`,
+`/api/ai/insights`, `/api/ai/chat`. No OpenAPI spec. Details: [docs/08](./docs/08-api-documentation.md).
+
+## Database
+
+SQLite locally (`data/india.db`), optional Supabase PG via `DATABASE_URL`. Schema in
+`src/lib/db/client.ts`. Details: [docs/07](./docs/07-database-documentation.md).
+
+## Testing
+
+- Unit: `npm test` (Vitest) — 41 tests across 6 files.
+- E2E: Playwright (dev server on port 3456 must be running). Details: [docs/13](./docs/13-testing-and-quality.md).
+
+## Deployment
+
+Vercel serverless. SQLite not viable in prod; needs live PG. Original Supabase host is
+dead — production blocked until replaced. Details: [docs/14](./docs/14-deployment-and-infrastructure.md).
+
+⚠️ **Deployment status:** original Supabase PG host is dead (DNS ENOTFOUND); Vercel env
+vars likely still point at it → deployed pages 500. Local dev unaffected. See
+[AGENTS.md](./AGENTS.md).
+
+## Documentation
+
+Index: [docs/README.md](./docs/README.md). All documents under `docs/`.
+
+## Contributing
+
+- Follow conventions in [docs/12](./docs/12-development-guide.md).
+- Run `npm test` and `npm run build` before submitting.
+- Don't commit secrets or `.env`.
+- Proposed guidelines (no existing CONTRIBUTING file) — treat as proposed.
 
 ## License
 
-MIT. Open-source the data when we have a clean release.
+No LICENSE file is present in the repository; the license has not yet been specified.
+(README previously mentioned "MIT" in prose, but no LICENSE file exists to verify this.)
+
+## Acknowledgements
+
+Next.js, React, Tailwind, shadcn/ui, Recharts, D3, World Bank, WHO, UNDP, OWID, and other
+public data providers.
+
+## Contact and support
+
+Repository: (use actual repo link when available). No contact info verified in repo.
