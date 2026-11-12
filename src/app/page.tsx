@@ -155,9 +155,6 @@ export default async function HomePage() {
       </header>
 
       <div className="mx-auto max-w-7xl space-y-8 px-6 py-8">
-        {/* KPI grid */}
-        <KpiGrid cards={kpiCards} />
-
         {/* World map */}
         <section>
           <WorldMapCard
@@ -165,6 +162,9 @@ export default async function HomePage() {
             regions={Object.fromEntries(countries.map((c) => [c.iso3, c.region]))}
           />
         </section>
+
+        {/* KPI grid (dashboard) */}
+        <KpiGrid cards={kpiCards} />
 
         {/* Scatter correlation */}
         <section>
