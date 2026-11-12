@@ -3,8 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * E2E test config for the India Dashboard.
  *
- * The Next.js dev server is expected to be ALREADY running on port 3456
- * (started manually, see task instructions). No `webServer` is configured.
+ * The Next.js dev server is started automatically on port 3456 via `webServer`
+ * (reuses an existing server if already running).
  *
  * Run with:  npx playwright test
  */
@@ -32,4 +32,10 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], headless: true },
     },
   ],
+  webServer: {
+    command: "npx next dev -p 3456",
+    url: "http://localhost:3456",
+    reuseExistingServer: true,
+    timeout: 120_000,
+  },
 });
