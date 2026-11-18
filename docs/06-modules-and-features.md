@@ -34,7 +34,7 @@
 
 ### `src` app-level
 
-- `src/middleware.ts` — rate-limits `/api/ai/chat` (15/min) and `/api/ai/insights` (30/min) per IP.
+- `src/proxy.ts` — rate-limits `/api/ai/chat` (15/min) and `/api/ai/insights` (30/min) per IP.
 
 ### `src/components`
 

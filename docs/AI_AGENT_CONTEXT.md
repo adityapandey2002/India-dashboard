@@ -17,7 +17,7 @@ Next.js 16, React 19, TS 5 strict, Tailwind 4, shadcn/ui, Recharts, D3, Motion 1
 - `src/app/layout.tsx` — root layout.
 - `src/app/page.tsx` — home (world map top, then KPIs).
 - `src/lib/db/client.ts` — DB driver.
-- `src/middleware.ts` — rate limiting.
+- `src/proxy.ts` — rate limiting.
 - `scripts/ingest.ts` — data pipeline.
 
 ## Critical directories
@@ -108,7 +108,7 @@ None.
 - `src/lib/data/indicators.ts` (registry).
 - `src/lib/rank-direction.ts` (direction map).
 - `src/lib/ai/client.ts` (model resolution).
-- `src/middleware.ts` (rate limits).
+- `src/proxy.ts` (rate limits).
 
 ## Safe modification guidelines
 
