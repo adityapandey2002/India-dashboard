@@ -105,6 +105,7 @@ export function WorldMapCard({ indicators, regions }: Props) {
   const [loading, setLoading] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [paths, setPaths] = useState<{ id: string; name: string; path: string; label: { x: number; y: number } | null }[]>([]);
+  const [viewBox, setViewBox] = useState("0 0 880 420");
   const [hovered, setHovered] = useState<{ name: string; value: number | null } | null>(null);
   const [yearsWithData, setYearsWithData] = useState<number[]>([]);
   const [continent, setContinent] = useState("world");
@@ -120,6 +121,7 @@ export function WorldMapCard({ indicators, regions }: Props) {
     return [...map.entries()];
   }, [indicators]);
 
+  const [vbX, vbY, vbW, vbH] = viewBox.split(" ").map(Number);
   const currIndicator = indicators.find((i) => i.id === selectedIndicator);
   const currentEvent = selectedYear ? HISTORICAL_EVENTS.find((e) => e.year === selectedYear) : null;
   const continentRegions = CONTINENTS.find((c) => c.key === continent)?.regions ?? [];
@@ -157,8 +159,15 @@ export function WorldMapCard({ indicators, regions }: Props) {
           const region = regions?.[iso3];
           return currentRegions.some((r) => region === r);
         });
-    const projection = d3.geoMercator().fitSize([880, 420], { type: "FeatureCollection", features: filtered });
+    const collection = { type: "FeatureCollection" as const, features: filtered };
+    const projection = d3.geoMercator().fitSize([880, 420], collection);
     const geoGenerator = d3.geoPath(projection);
+    // Trim the letterbox padding that fitSize leaves on wide boxes so the
+    // projected map itself fills the full width of its container.
+    const [[x0, y0], [x1, y1]] = geoGenerator.bounds(collection);
+    if (Number.isFinite(x0) && Number.isFinite(y0) && Number.isFinite(x1) && Number.isFinite(y1)) {
+      setViewBox(`${x0} ${y0} ${Math.max(1, x1 - x0)} ${Math.max(1, y1 - y0)}`);
+    }
     setPaths(
       filtered.map((f: any) => ({
         id: f.id,
@@ -278,7 +287,7 @@ export function WorldMapCard({ indicators, regions }: Props) {
         {!loading && (
           <div className="relative">
             <div className="overflow-hidden rounded-xl border border-border/60 shadow-sm">
-              <svg viewBox="0 0 880 420" className="w-full h-auto" style={{ maxHeight: 400, display: "block" }}>
+              <svg viewBox={viewBox} className="block w-full h-auto">
                 <defs>
                   <linearGradient id="map-ocean" x1="1" y1="0" x2="0" y2="0">
                     <stop offset="0%" stopColor="#e0f2fe" />
@@ -286,7 +295,7 @@ export function WorldMapCard({ indicators, regions }: Props) {
                     <stop offset="100%" stopColor="#f5f3ff" />
                   </linearGradient>
                 </defs>
-                <rect width="880" height="420" fill="url(#map-ocean)" />
+                <rect x={vbX} y={vbY} width={vbW} height={vbH} fill="url(#map-ocean)" />
                 {paths.map(({ id, name, path }, idx) => {
                   const iso3 = NUM_ID_TO_ISO3[id];
                   if (!iso3) return <path key={`${id}-${idx}`} d={path || undefined} fill="#f8fafc" stroke="#fff" strokeWidth={0.6} />;
