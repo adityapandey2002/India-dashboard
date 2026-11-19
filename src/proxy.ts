@@ -49,7 +49,7 @@ function hit(key: string, limit: number, now: number): { allowed: boolean; retry
   return { allowed: true, retryAfter: 0 };
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const limit = LIMITS[pathname];
   if (!limit) return NextResponse.next();
